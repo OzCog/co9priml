@@ -36,7 +36,13 @@ jobs:
       run: rm -rf integrations/node9_temp/.git
 
     - name: Move node9 to final location
-      run: mv integrations/node9_temp integrations/node9
+      run: |
+        if [ ! -d integrations/node9 ]; then
+          mv integrations/node9_temp integrations/node9
+          echo "Move completed: node9_temp → node9"
+        else
+          echo "Skip: integrations/node9 already exists"
+        fi
 
     - name: Clone mem0 repository
       run: git clone https://github.com/drzo/mem0.git integrations/mem0_temp
@@ -45,7 +51,13 @@ jobs:
       run: rm -rf integrations/mem0_temp/.git
 
     - name: Move mem0 to final location
-      run: mv integrations/mem0_temp integrations/mem0
+      run: |
+        if [ ! -d integrations/mem0 ]; then
+          mv integrations/mem0_temp integrations/mem0
+          echo "Move completed: mem0_temp → mem0"
+        else
+          echo "Skip: integrations/mem0 already exists"
+        fi
 
     - name: Clone ggml-org-central repository
       run: git clone https://github.com/ZoneCog/ggml-org-central.git integrations/ggml-org-central_temp
@@ -54,7 +66,13 @@ jobs:
       run: rm -rf integrations/ggml-org-central_temp/.git
 
     - name: Move ggml-org-central to final location
-      run: mv integrations/ggml-org-central_temp integrations/ggml-org-central
+      run: |
+        if [ ! -d integrations/ggml-org-central ]; then
+          mv integrations/ggml-org-central_temp integrations/ggml-org-central
+          echo "Move completed: ggml-org-central_temp → ggml-org-central"
+        else
+          echo "Skip: integrations/ggml-org-central already exists"
+        fi
 
     - name: Clone kokkos-central repository
       run: git clone https://github.com/ZoneCog/kokkos-central.git integrations/kokkos-central_temp
@@ -63,7 +81,13 @@ jobs:
       run: rm -rf integrations/kokkos-central_temp/.git
 
     - name: Move kokkos-central to final location
-      run: mv integrations/kokkos-central_temp integrations/kokkos-central
+      run: |
+        if [ ! -d integrations/kokkos-central ]; then
+          mv integrations/kokkos-central_temp integrations/kokkos-central
+          echo "Move completed: kokkos-central_temp → kokkos-central"
+        else
+          echo "Skip: integrations/kokkos-central already exists"
+        fi
 
     - name: Clone a0ml repository
       run: git clone https://github.com/ZoneCog/a0ml.git integrations/a0ml_temp
@@ -72,7 +96,13 @@ jobs:
       run: rm -rf integrations/a0ml_temp/.git
 
     - name: Move a0ml to final location
-      run: mv integrations/a0ml_temp integrations/a0ml
+      run: |
+        if [ ! -d integrations/a0ml ]; then
+          mv integrations/a0ml_temp integrations/a0ml
+          echo "Move completed: a0ml_temp → a0ml"
+        else
+          echo "Skip: integrations/a0ml already exists"
+        fi
 
     - name: Clone mlpn repository
       run: git clone https://github.com/OzCog/mlpn.git integrations/mlpn_temp
@@ -81,7 +111,13 @@ jobs:
       run: rm -rf integrations/mlpn_temp/.git
 
     - name: Move mlpn to final location
-      run: mv integrations/mlpn_temp integrations/kokkos-central
+      run: |
+        if [ ! -d integrations/mlpn ]; then
+          mv integrations/mlpn_temp integrations/mlpn
+          echo "Move completed: mlpn_temp → mlpn"
+        else
+          echo "Skip: integrations/mlpn already exists"
+        fi
 
     - name: Add integrated repositories to Git
       run: git add integrations/
