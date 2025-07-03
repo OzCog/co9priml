@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple, Callable
-from dataclasses import dataclass
+from .state import CognitiveState
 from ..modules.perception import PerceptionModule, SensoryInput
 from ..modules.reasoning import ReasoningModule, Thought
 from ..modules.action import ActionSelectionModule, Action
@@ -10,19 +10,6 @@ from ..modules.learning import ReinforcementLearner, Experience
 # Import the new AtomSpace and Memory modules
 from ..atomspace import AtomSpace, Node, Link, BackendType
 from ..memory import Memory
-
-@dataclass
-class CognitiveState:
-    """Represents the current cognitive state of the system"""
-    attention_focus: torch.Tensor
-    working_memory: Dict[str, Any]
-    emotional_valence: float
-    goal_stack: List[str]
-    sensory_buffer: Dict[str, torch.Tensor]
-    current_thought: Thought = None
-    last_action: Action = None
-    last_reward: float = 0.0
-    total_reward: float = 0.0
 
 class CogPrimeCore:
     """
@@ -135,15 +122,16 @@ class CogPrimeCore:
         return action
     
     def _perceive(self, sensory_input: SensoryInput) -> None:
-        """Perception phase of the cognitive cycle"""
-        # Process sensory input through perception module
-        attended_features, attention_weights = self.perception.process_input(sensory_input)
+        """Enhanced perception phase of the cognitive cycle"""
+        # Process sensory input through enhanced perception module
+        attended_features, attention_weights, processing_info = self.perception.process_input(sensory_input)
         
-        # Update cognitive state
+        # Update cognitive state with enhanced information
         self.state.attention_focus = attention_weights
         self.state.sensory_buffer = {
             'attended_features': attended_features,
-            'raw_input': sensory_input
+            'raw_input': sensory_input,
+            'processing_info': processing_info
         }
         
         # Create atoms for perception in AtomSpace
@@ -151,7 +139,6 @@ class CogPrimeCore:
         self.atomspace.add(perception_node)
         
         # Create link between perception and attended features
-        # Convert tensor to list for storage in AtomSpace
         features_list = attended_features.tolist() if hasattr(attended_features, 'tolist') else attended_features
         features_str = str(features_list)[:100]  # Truncate for readability
         features_node = Node("ConceptNode", f"features_{features_str}")
@@ -163,6 +150,15 @@ class CogPrimeCore:
             Link("ListLink", [perception_node, features_node])
         ])
         self.atomspace.add(perception_link)
+        
+        # Store enhanced processing information
+        if processing_info.get('cross_modal_integration', False):
+            cross_modal_node = Node("ConceptNode", "cross_modal_integration")
+            self.atomspace.add(cross_modal_node)
+            integration_link = Link("EvaluationLink", [
+                cross_modal_node, perception_node
+            ])
+            self.atomspace.add(integration_link)
     
     def _reason(self) -> None:
         """Reasoning phase of the cognitive cycle"""

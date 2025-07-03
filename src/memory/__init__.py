@@ -50,7 +50,7 @@ except ImportError:
     MEM0_AVAILABLE = False
     
 # Import CogPrime components
-from ..core.cognitive_core import CognitiveState
+from ..core.state import CognitiveState
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -392,6 +392,7 @@ class Mem0MemoryBackend(MemoryBackend):
         import torch
         from ..modules.reasoning import Thought
         from ..modules.action import Action
+        from ..core.state import CognitiveState
         
         # Convert lists back to tensors
         attention_focus = torch.tensor(data.get("attention_focus", [0] * 512))

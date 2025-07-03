@@ -11,7 +11,8 @@ This package integrates multiple cognitive frameworks including:
 """
 
 # Core cognitive systems
-from .core.cognitive_core import CogPrimeCore, CognitiveState
+from .core.cognitive_core import CogPrimeCore
+from .core.state import CognitiveState
 from .core.vervaeke_cognitive_core import CognitiveCore, CognitiveFrame, KnowingMode
 from .core.relevance_core import RelevanceCore, RelevanceMode
 
