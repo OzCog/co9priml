@@ -8,7 +8,8 @@ This package contains the core cognitive architecture including:
 """
 
 # Original CogPrime core
-from .cognitive_core import CogPrimeCore, CognitiveState
+from .cognitive_core import CogPrimeCore
+from .state import CognitiveState
 
 # Vervaeke-inspired cognitive core
 from .vervaeke_cognitive_core import CognitiveCore, CognitiveFrame, KnowingMode
