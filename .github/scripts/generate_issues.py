@@ -672,7 +672,7 @@ def main():
                        help="Phase to generate issues for")
     parser.add_argument("--prefix", default="", 
                        help="Prefix for issue titles")
-    parser.add_argument("--dry-run", type=bool, default=False,
+    parser.add_argument("--dry-run", type=str, default="false",
                        help="Dry run mode - don't actually create issues")
     parser.add_argument("--token", required=True,
                        help="GitHub API token")
@@ -681,9 +681,12 @@ def main():
     
     args = parser.parse_args()
     
+    # Convert dry_run string to boolean
+    dry_run = args.dry_run.lower() == "true"
+    
     # Create generator and run
     generator = CogPrimeIssueGenerator(args.repo, args.token)
-    success = generator.generate_all_issues(args.phase, args.prefix, args.dry_run)
+    success = generator.generate_all_issues(args.phase, args.prefix, dry_run)
     
     sys.exit(0 if success else 1)
 
