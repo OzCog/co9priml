@@ -349,9 +349,22 @@ class EnhancedEpisodicMemory:
     
     def retrieve(self, query: torch.Tensor, k: int = 5) -> List[Thought]:
         """Enhanced retrieval with consolidation awareness"""
+        if len(self.memories) == 0:
+            return []
+            
+        # Ensure query size matches memory storage size
+        if query.numel() != self.feature_dim:
+            if query.numel() > self.feature_dim:
+                query_resized = query.flatten()[:self.feature_dim]
+            else:
+                padding = torch.zeros(self.feature_dim - query.numel())
+                query_resized = torch.cat([query.flatten(), padding])
+        else:
+            query_resized = query
+        
         # Standard similarity-based retrieval
         similarities = torch.cosine_similarity(
-            query.unsqueeze(0),
+            query_resized.unsqueeze(0),
             self.memory_matrix[:len(self.memories)],
             dim=1
         )
@@ -370,7 +383,7 @@ class EnhancedEpisodicMemory:
         
         # Also check consolidated memories
         for cons_id, cons_data in self.consolidated_memories.items():
-            cons_similarity = torch.cosine_similarity(query, cons_data['content'], dim=0)
+            cons_similarity = torch.cosine_similarity(query_resized, cons_data['content'], dim=0)
             if cons_similarity > 0.6:  # Threshold for consolidated memory relevance
                 # Create a virtual memory representing the consolidation
                 cons_memory = Thought(
@@ -475,16 +488,39 @@ class ReasoningModule(nn.Module):
         # Advanced pattern recognition
         patterns = self._detect_all_patterns(current_input)
         
-        # Enhanced pattern recognition
-        pattern_features = self.pattern_recognizer(current_input)
+        # Enhanced pattern recognition with input size handling
+        if current_input.numel() != self.feature_dim:
+            if current_input.numel() > self.feature_dim:
+                resized_input = current_input.flatten()[:self.feature_dim]
+            else:
+                padding = torch.zeros(self.feature_dim - current_input.numel())
+                resized_input = torch.cat([current_input.flatten(), padding])
+        else:
+            resized_input = current_input
+        
+        pattern_features = self.pattern_recognizer(resized_input)
         
         # Retrieve enhanced memories
-        relevant_memories = self.episodic_memory.retrieve(current_input, k=8)
-        memory_tensors = [m.content for m in relevant_memories] if relevant_memories else [current_input]
-        memory_tensor = torch.stack(memory_tensors[:5])  # Limit to top 5 for efficiency
+        relevant_memories = self.episodic_memory.retrieve(resized_input, k=8)
+        memory_tensors = [m.content for m in relevant_memories] if relevant_memories else [resized_input]
+        
+        # Ensure all memory tensors are the same size
+        normalized_memories = []
+        for memory_tensor in memory_tensors[:5]:  # Limit to top 5 for efficiency
+            if memory_tensor.numel() != self.feature_dim:
+                if memory_tensor.numel() > self.feature_dim:
+                    normalized = memory_tensor.flatten()[:self.feature_dim]
+                else:
+                    padding = torch.zeros(self.feature_dim - memory_tensor.numel())
+                    normalized = torch.cat([memory_tensor.flatten(), padding])
+            else:
+                normalized = memory_tensor
+            normalized_memories.append(normalized)
+        
+        memory_tensor = torch.stack(normalized_memories) if normalized_memories else resized_input.unsqueeze(0)
         
         # Apply enhanced attention over memories and current input
-        query = current_input.unsqueeze(0)
+        query = resized_input.unsqueeze(0)
         attended_memory, attention_weights = self.attention(
             query, memory_tensor, memory_tensor
         )
