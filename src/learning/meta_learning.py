@@ -358,11 +358,26 @@ class KnowledgeDistiller:
         
         # Simple compression by reducing layer sizes
         student_layers = []
-        for layer in teacher_model:
+        prev_output_size = None
+        
+        for i, layer in enumerate(teacher_model):
             if isinstance(layer, nn.Linear):
-                compressed_size = max(1, int(layer.out_features * compression_ratio))
-                student_layer = nn.Linear(layer.in_features, compressed_size)
+                input_size = layer.in_features
+                original_output_size = layer.out_features
+                
+                # Compress output size
+                if i < len(teacher_model) - 1:  # Not the final layer
+                    compressed_output_size = max(1, int(original_output_size * compression_ratio))
+                else:  # Keep final layer size for compatibility
+                    compressed_output_size = original_output_size
+                
+                # Adjust input size based on previous layer compression
+                if prev_output_size is not None:
+                    input_size = prev_output_size
+                    
+                student_layer = nn.Linear(input_size, compressed_output_size)
                 student_layers.append(student_layer)
+                prev_output_size = compressed_output_size
             else:
                 student_layers.append(copy.deepcopy(layer))
                 
