@@ -6,6 +6,7 @@ from ..modules.perception import PerceptionModule, SensoryInput
 from ..modules.reasoning import ReasoningModule, Thought
 from ..modules.action import ActionSelectionModule, Action
 from ..modules.learning import ReinforcementLearner, Experience
+from ..learning.meta_learning import MetaLearner, MetaExperience, LearningStrategy
 
 # Import the new AtomSpace and Memory modules
 from ..atomspace import AtomSpace, Node, Link, BackendType
@@ -23,6 +24,13 @@ class CogPrimeCore:
         self.reasoning = ReasoningModule(config)
         self.action_selector = ActionSelectionModule(config)
         self.learner = ReinforcementLearner(config)
+        
+        # Initialize meta-learning system
+        self.meta_learner = MetaLearner(self.config.get('meta_learning_config', {}))
+        
+        # Track current domain and task for meta-learning
+        self.current_domain = self.config.get('default_domain', 'general')
+        self.current_task = 'cognitive_processing'
         
         # Initialize AtomSpace with the specified backend
         atomspace_backend = self.config.get('atomspace_backend', 'local')
@@ -100,6 +108,17 @@ class CogPrimeCore:
             # Update learning system
             learning_stats = self.learner.learn(experience)
             self.state.working_memory['learning_stats'] = learning_stats
+            
+            # Meta-learning integration: Create training data for meta-learning
+            meta_training_data = [(current_state, reward)]
+            meta_results = self.meta_learner.learn_meta_task(
+                domain=self.current_domain,
+                task=self.current_task,
+                training_data=meta_training_data
+            )
+            
+            # Update working memory with meta-learning results
+            self.state.working_memory['meta_learning_stats'] = meta_results
             
             # Store experience in memory for later batch learning
             self.memory.save_experience(
@@ -384,3 +403,193 @@ class CogPrimeCore:
         except Exception as e:
             print(f"Error loading state: {e}")
             return False
+    
+    def set_domain_and_task(self, domain: str, task: str) -> None:
+        """Set the current domain and task for meta-learning optimization
+        
+        Args:
+            domain: The domain identifier (e.g., 'vision', 'language', 'robotics')
+            task: The specific task within the domain
+        """
+        self.current_domain = domain
+        self.current_task = task
+        
+        # Register domain with transfer learning if not already registered
+        if domain not in self.meta_learner.transfer_learning.domain_knowledge:
+            # Use attention focus size as feature dimension
+            feature_dim = self.state.attention_focus.size(-1)
+            self.meta_learner.transfer_learning.register_domain(domain, feature_dim)
+    
+    def trigger_meta_learning_batch(self, batch_data: List[Tuple[torch.Tensor, Any]],
+                                   validation_data: List[Tuple[torch.Tensor, Any]] = None) -> Dict[str, Any]:
+        """Trigger a meta-learning batch update with accumulated data
+        
+        Args:
+            batch_data: List of (input, target) pairs for training
+            validation_data: Optional validation data for evaluation
+            
+        Returns:
+            Meta-learning results and statistics
+        """
+        return self.meta_learner.learn_meta_task(
+            domain=self.current_domain,
+            task=self.current_task,
+            training_data=batch_data,
+            validation_data=validation_data
+        )
+    
+    def get_meta_learning_stats(self) -> Dict[str, Any]:
+        """Get comprehensive meta-learning statistics and performance metrics
+        
+        Returns:
+            Dictionary containing meta-learning performance statistics
+        """
+        return self.meta_learner.get_meta_learning_stats()
+    
+    def optimize_learning_strategy(self, context: Dict[str, Any] = None) -> LearningStrategy:
+        """Get the optimal learning strategy for the current context
+        
+        Args:
+            context: Optional context information to guide strategy selection
+            
+        Returns:
+            The recommended learning strategy
+        """
+        if context is None:
+            context = {
+                'domain': self.current_domain,
+                'task': self.current_task,
+                'current_performance': self.state.total_reward / max(1, abs(self.state.total_reward)) if self.state.total_reward != 0 else 0.5
+            }
+        
+        return self.meta_learner.adaptive_manager.select_strategy(context)
+    
+    def transfer_knowledge_from_domain(self, source_domain: str, adaptation_rate: float = 0.1) -> bool:
+        """Transfer knowledge from a source domain to the current domain
+        
+        Args:
+            source_domain: The domain to transfer knowledge from
+            adaptation_rate: Rate of knowledge adaptation (0.0 to 1.0)
+            
+        Returns:
+            True if transfer was successful, False otherwise
+        """
+        if self.current_domain == source_domain:
+            return False
+            
+        # Ensure both domains are registered
+        current_feature_dim = self.state.attention_focus.size(-1)
+        
+        if source_domain not in self.meta_learner.transfer_learning.domain_knowledge:
+            self.meta_learner.transfer_learning.register_domain(source_domain, current_feature_dim)
+            
+        if self.current_domain not in self.meta_learner.transfer_learning.domain_knowledge:
+            self.meta_learner.transfer_learning.register_domain(self.current_domain, current_feature_dim)
+        
+        # Perform knowledge transfer
+        return self.meta_learner.transfer_learning.transfer_knowledge(
+            source_domain, self.current_domain, adaptation_rate
+        )
+    
+    def create_few_shot_prototype(self, task_name: str, examples: List[torch.Tensor],
+                                labels: List[int] = None) -> bool:
+        """Create a few-shot learning prototype for quick task adaptation
+        
+        Args:
+            task_name: Name of the task to create prototype for
+            examples: List of example inputs
+            labels: Optional labels for the examples
+            
+        Returns:
+            True if prototype was created successfully
+        """
+        if not examples:
+            return False
+            
+        # Default labels if none provided
+        if labels is None:
+            labels = [0] * len(examples)
+            
+        try:
+            prototype = self.meta_learner.few_shot_learner.create_prototype(
+                task_name, examples, labels
+            )
+            return True
+        except Exception as e:
+            print(f"Error creating few-shot prototype: {e}")
+            return False
+    
+    def adapt_learning_rate(self, recent_performance: List[float]) -> float:
+        """Adapt the learning rate based on recent performance trends
+        
+        Args:
+            recent_performance: List of recent performance scores
+            
+        Returns:
+            Adapted learning rate
+        """
+        current_lr = self.learner.optimizer.param_groups[0]['lr']
+        new_lr = self.meta_learner.adaptive_manager.adapt_learning_rate(
+            current_lr, recent_performance
+        )
+        
+        # Update the learner's learning rate
+        for param_group in self.learner.optimizer.param_groups:
+            param_group['lr'] = new_lr
+            
+        return new_lr
+    
+    def get_curriculum_progress(self) -> Dict[str, Any]:
+        """Get current curriculum learning progress
+        
+        Returns:
+            Dictionary containing curriculum progress information
+        """
+        return self.meta_learner.curriculum_learner.get_curriculum_progress()
+    
+    def add_curriculum_level(self, level_id: str, difficulty: float,
+                           tasks: List[Any], prerequisites: List[str] = None):
+        """Add a level to the curriculum learning system
+        
+        Args:
+            level_id: Unique identifier for the curriculum level
+            difficulty: Difficulty score (0.0 to 1.0)
+            tasks: List of tasks for this level
+            prerequisites: List of prerequisite level IDs
+        """
+        self.meta_learner.curriculum_learner.add_curriculum_level(
+            level_id, difficulty, tasks, prerequisites
+        )
+    
+    def get_next_curriculum_task(self, current_performance: float) -> Optional[Any]:
+        """Get the next task from the curriculum based on current performance
+        
+        Args:
+            current_performance: Current performance score (0.0 to 1.0)
+            
+        Returns:
+            Next curriculum task or None if curriculum is complete
+        """
+        return self.meta_learner.curriculum_learner.get_next_task(current_performance)
+    
+    def save_meta_knowledge(self, filepath: str) -> bool:
+        """Save accumulated meta-learning knowledge to persistent storage
+        
+        Args:
+            filepath: Path to save the meta-knowledge
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        return self.meta_learner.save_meta_knowledge(filepath)
+    
+    def load_meta_knowledge(self, filepath: str) -> bool:
+        """Load previously saved meta-learning knowledge
+        
+        Args:
+            filepath: Path to load the meta-knowledge from
+            
+        Returns:
+            True if successful, False otherwise  
+        """
+        return self.meta_learner.load_meta_knowledge(filepath)
