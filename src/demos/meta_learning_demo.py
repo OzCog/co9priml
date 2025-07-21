@@ -56,7 +56,7 @@ def demonstrate_transfer_learning():
         training_data=medical_data
     )
     
-    print(f"   Target domain performance: {medical_results['performance']:.3f}")
+    # Target domain performance not logged due to sensitivity
     print(f"   Strategy used: {medical_results['strategy_used']}")
     print(f"   Convergence time: {medical_results['convergence_time']:.3f}s")
     
