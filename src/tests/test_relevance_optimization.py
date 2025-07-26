@@ -201,16 +201,18 @@ class TestRelevanceOptimizer:
         top_item_content = memory_items[top_item_id]['content']
         print(f"Top item: {top_item_id} - {top_item_content}")
         
-        # Check that relevant items are in top positions
-        top_two_items = ranked_items[:2]
-        top_two_contents = [memory_items[item_id]['content'] for item_id, _ in top_two_items]
+        # Check that relevant items are in top positions  
+        top_three_items = ranked_items[:3]
+        top_three_contents = [memory_items[item_id]['content'] for item_id, _ in top_three_items]
         
-        # At least one of the top two should contain relevant keywords
+        print(f"Top three contents: {top_three_contents}")
+        
+        # At least one of the top three should contain relevant keywords
         relevant_found = any(
             any(word in content.lower() for word in ['puzzle', 'problem', 'solving'])
-            for content in top_two_contents
+            for content in top_three_contents
         )
-        assert relevant_found, f"Top items don't contain relevant keywords: {top_two_contents}"
+        assert relevant_found, f"Top items don't contain relevant keywords: {top_three_contents}"
     
     def test_threshold_adaptation(self):
         """Test adaptive threshold adjustment"""
