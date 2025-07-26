@@ -6,8 +6,16 @@ adaptive cognitive systems, and experience-based adaptation.
 """
 
 from .relevance_learning import RelevanceLearner, RelevanceExperience
+from .meta_learning import MetaLearner, TransferLearning, FewShotLearner, AdaptiveLearningManager, KnowledgeDistiller, CurriculumLearner, LearningStrategy
 
 __all__ = [
     'RelevanceLearner',
-    'RelevanceExperience'
+    'RelevanceExperience',
+    'MetaLearner',
+    'TransferLearning', 
+    'FewShotLearner',
+    'AdaptiveLearningManager',
+    'KnowledgeDistiller',
+    'CurriculumLearner',
+    'LearningStrategy'
 ]
