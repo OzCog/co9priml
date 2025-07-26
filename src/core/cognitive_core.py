@@ -12,6 +12,18 @@ from ..learning.meta_learning import MetaLearner, MetaExperience, LearningStrate
 from ..atomspace import AtomSpace, Node, Link, BackendType
 from ..memory import Memory
 
+# Import Cross-Domain Integration Framework
+from ..integration.cross_domain_framework import (
+    CrossDomainIntegrationFramework, DomainType, ModalityType,
+    ConceptMapping, AbstractConcept
+)
+from ..integration.cross_domain_reasoning import (
+    CrossDomainReasoningEngine, ReasoningType
+)
+from ..integration.multimodal_knowledge_graph import (
+    MultiModalKnowledgeGraph, ModalityFeature, ModalityEmbeddingType
+)
+
 class CogPrimeCore:
     """
     The core cognitive architecture of CogPrime system.
@@ -42,6 +54,19 @@ class CogPrimeCore:
         memory_config = self.config.get('memory_config', {})
         self.memory = Memory(backend_type=memory_backend, config=memory_config)
         
+        # Initialize Cross-Domain Integration Framework
+        cross_domain_config = self.config.get('cross_domain_config', {})
+        self.cross_domain_framework = CrossDomainIntegrationFramework(cross_domain_config)
+        
+        # Initialize Cross-Domain Reasoning Engine
+        self.reasoning_engine = CrossDomainReasoningEngine(self.cross_domain_framework)
+        
+        # Initialize Multi-Modal Knowledge Graph
+        self.multimodal_kg = MultiModalKnowledgeGraph(self.reasoning_engine.knowledge_graph)
+        
+        # Register default domains and modalities
+        self._initialize_cross_domain_components()
+        
         # Initialize cognitive state
         self.state = CognitiveState(
             attention_focus=torch.zeros(512),  # Initial attention vector
@@ -60,6 +85,145 @@ class CogPrimeCore:
         
         # Create AtomSpace nodes for core concepts
         self._create_core_atoms()
+    
+    def _initialize_cross_domain_components(self):
+        """Initialize cross-domain integration components"""
+        # Register core domains
+        core_domains = [
+            DomainType.VISUAL, DomainType.AUDITORY, DomainType.LINGUISTIC,
+            DomainType.SPATIAL, DomainType.TEMPORAL, DomainType.ABSTRACT
+        ]
+        
+        for domain in core_domains:
+            self.cross_domain_framework.register_domain(domain)
+        
+        # Register core modalities  
+        core_modalities = [
+            ModalityType.VISION, ModalityType.HEARING, ModalityType.LANGUAGE,
+            ModalityType.REASONING, ModalityType.MEMORY, ModalityType.ATTENTION
+        ]
+        
+        for modality in core_modalities:
+            self.cross_domain_framework.register_modality(modality)
+        
+        # Create basic concept mappings
+        self._create_basic_concept_mappings()
+        
+        # Populate reasoning engine with initial knowledge
+        self._populate_initial_knowledge()
+    
+    def _create_basic_concept_mappings(self):
+        """Create basic cross-domain concept mappings"""
+        # Visual-Linguistic mappings
+        visual_linguistic_mappings = [
+            ("red", "red color"),
+            ("large", "big size"),
+            ("round", "circular shape"),
+            ("bright", "high luminosity")
+        ]
+        
+        for visual_concept, linguistic_concept in visual_linguistic_mappings:
+            mapping = ConceptMapping(
+                source_domain=DomainType.VISUAL,
+                target_domain=DomainType.LINGUISTIC,
+                source_concept=visual_concept,
+                target_concept=linguistic_concept,
+                mapping_strength=0.8,
+                semantic_similarity=0.9,
+                bidirectional=True
+            )
+            self.cross_domain_framework.unified_representation.add_concept_mapping(mapping)
+        
+        # Audio-Linguistic mappings
+        audio_linguistic_mappings = [
+            ("loud", "high volume"),
+            ("high_pitch", "high frequency"),
+            ("melody", "musical sequence"),
+            ("rhythm", "temporal pattern")
+        ]
+        
+        for audio_concept, linguistic_concept in audio_linguistic_mappings:
+            mapping = ConceptMapping(
+                source_domain=DomainType.AUDITORY,
+                target_domain=DomainType.LINGUISTIC,
+                source_concept=audio_concept,
+                target_concept=linguistic_concept,
+                mapping_strength=0.7,
+                semantic_similarity=0.8,
+                bidirectional=True
+            )
+            self.cross_domain_framework.unified_representation.add_concept_mapping(mapping)
+        
+        # Spatial-Temporal mappings
+        spatial_temporal_mappings = [
+            ("near", "soon"),
+            ("far", "distant_future"),
+            ("above", "before"),
+            ("below", "after")
+        ]
+        
+        for spatial_concept, temporal_concept in spatial_temporal_mappings:
+            mapping = ConceptMapping(
+                source_domain=DomainType.SPATIAL,
+                target_domain=DomainType.TEMPORAL,
+                source_concept=spatial_concept,
+                target_concept=temporal_concept,
+                mapping_strength=0.6,
+                semantic_similarity=0.7,
+                bidirectional=True
+            )
+            self.cross_domain_framework.unified_representation.add_concept_mapping(mapping)
+    
+    def _populate_initial_knowledge(self):
+        """Populate reasoning engine with initial domain knowledge"""
+        # Visual domain knowledge
+        visual_knowledge = {
+            'concepts': {
+                'red': {'attributes': {'color': True, 'wavelength': 700}, 'uncertainty': 0.1},
+                'blue': {'attributes': {'color': True, 'wavelength': 450}, 'uncertainty': 0.1},
+                'large': {'attributes': {'size': True, 'relative': True}, 'uncertainty': 0.2},
+                'small': {'attributes': {'size': True, 'relative': True}, 'uncertainty': 0.2}
+            },
+            'relations': [
+                {'id': 'red_blue_contrast', 'source': 'red', 'target': 'blue', 'type': 'contrasts_with', 'strength': 0.8},
+                {'id': 'large_small_opposite', 'source': 'large', 'target': 'small', 'type': 'opposite_of', 'strength': 0.9}
+            ]
+        }
+        
+        # Auditory domain knowledge
+        auditory_knowledge = {
+            'concepts': {
+                'loud': {'attributes': {'volume': True, 'intensity': 'high'}, 'uncertainty': 0.1},
+                'quiet': {'attributes': {'volume': True, 'intensity': 'low'}, 'uncertainty': 0.1},
+                'high_pitch': {'attributes': {'frequency': True, 'value': 'high'}, 'uncertainty': 0.2},
+                'low_pitch': {'attributes': {'frequency': True, 'value': 'low'}, 'uncertainty': 0.2}
+            },
+            'relations': [
+                {'id': 'loud_quiet_opposite', 'source': 'loud', 'target': 'quiet', 'type': 'opposite_of', 'strength': 0.9},
+                {'id': 'high_low_pitch_opposite', 'source': 'high_pitch', 'target': 'low_pitch', 'type': 'opposite_of', 'strength': 0.9}
+            ]
+        }
+        
+        # Linguistic domain knowledge
+        linguistic_knowledge = {
+            'concepts': {
+                'red_color': {'attributes': {'semantic_field': 'color', 'type': 'adjective'}, 'uncertainty': 0.05},
+                'big_size': {'attributes': {'semantic_field': 'size', 'type': 'adjective'}, 'uncertainty': 0.1},
+                'high_volume': {'attributes': {'semantic_field': 'sound', 'type': 'adjective'}, 'uncertainty': 0.1}
+            },
+            'relations': [
+                {'id': 'color_size_different_fields', 'source': 'red_color', 'target': 'big_size', 
+                 'type': 'different_semantic_field', 'strength': 0.7}
+            ]
+        }
+        
+        domain_knowledge = {
+            DomainType.VISUAL: visual_knowledge,
+            DomainType.AUDITORY: auditory_knowledge,
+            DomainType.LINGUISTIC: linguistic_knowledge
+        }
+        
+        self.reasoning_engine.populate_knowledge_graph(domain_knowledge)
     
     def _create_core_atoms(self):
         """Create foundational atoms in the AtomSpace"""
@@ -141,9 +305,29 @@ class CogPrimeCore:
         return action
     
     def _perceive(self, sensory_input: SensoryInput) -> None:
-        """Enhanced perception phase of the cognitive cycle"""
+        """Enhanced perception phase with cross-modal integration"""
         # Process sensory input through enhanced perception module
         attended_features, attention_weights, processing_info = self.perception.process_input(sensory_input)
+        
+        # Prepare multi-modal inputs for cross-domain processing
+        multimodal_inputs = {}
+        
+        # Convert sensory input to modality-specific features
+        if hasattr(sensory_input, 'visual') and sensory_input.visual is not None:
+            multimodal_inputs[ModalityType.VISION] = sensory_input.visual.numpy() if hasattr(sensory_input.visual, 'numpy') else sensory_input.visual
+        
+        if hasattr(sensory_input, 'auditory') and sensory_input.auditory is not None:
+            multimodal_inputs[ModalityType.HEARING] = sensory_input.auditory.numpy() if hasattr(sensory_input.auditory, 'numpy') else sensory_input.auditory
+        
+        # Process through multi-modal knowledge graph
+        if multimodal_inputs:
+            cross_modal_results = self.multimodal_kg.process_multimodal_input(
+                multimodal_inputs,
+                context={'attention_weights': attention_weights, 'processing_info': processing_info}
+            )
+            
+            # Store cross-modal results in sensory buffer
+            processing_info['cross_modal_results'] = cross_modal_results
         
         # Update cognitive state with enhanced information
         self.state.attention_focus = attention_weights
@@ -178,9 +362,23 @@ class CogPrimeCore:
                 cross_modal_node, perception_node
             ])
             self.atomspace.add(integration_link)
+        
+        # Add cross-modal correspondences to AtomSpace
+        if 'cross_modal_results' in processing_info:
+            correspondences = processing_info['cross_modal_results'].get('correspondences', [])
+            for correspondence in correspondences:
+                corr_node = Node("CorrespondenceNode", correspondence.correspondence_id)
+                self.atomspace.add(corr_node)
+                
+                # Link correspondence to perception
+                corr_link = Link("EvaluationLink", [
+                    Node("ConceptNode", "cross_modal_correspondence"),
+                    Link("ListLink", [perception_node, corr_node])
+                ])
+                self.atomspace.add(corr_link)
     
     def _reason(self) -> None:
-        """Reasoning phase of the cognitive cycle"""
+        """Enhanced reasoning phase with cross-domain inference"""
         # Get attended features from sensory buffer
         attended_features = self.state.sensory_buffer['attended_features']
         
@@ -189,6 +387,40 @@ class CogPrimeCore:
             attended_features,
             self.state.working_memory
         )
+        
+        # Perform cross-domain reasoning if we have active domains
+        cross_domain_inferences = []
+        if len(self.cross_domain_framework.active_domains) > 1:
+            # Extract concepts from thought content
+            thought_concepts = self._extract_concepts_from_thought(thought.content)
+            
+            # Attempt cross-domain reasoning
+            active_domains = list(self.cross_domain_framework.active_domains)
+            for i, source_domain in enumerate(active_domains):
+                for target_domain in active_domains[i+1:]:
+                    # Try different reasoning types
+                    for reasoning_type in [ReasoningType.ANALOGICAL, ReasoningType.CAUSAL, ReasoningType.DEDUCTIVE]:
+                        inferences = self.reasoning_engine.make_cross_domain_inference(
+                            reasoning_type=reasoning_type,
+                            source_domain=source_domain,
+                            target_domain=target_domain,
+                            source_facts=thought_concepts,
+                            context={'current_thought': thought.content, 'salience': thought.salience}
+                        )
+                        cross_domain_inferences.extend(inferences)
+        
+        # Integrate cross-domain inferences into thought
+        if cross_domain_inferences:
+            # Enhance thought content with cross-domain insights
+            inference_summary = self._summarize_inferences(cross_domain_inferences)
+            enhanced_content = f"{thought.content} | Cross-domain insights: {inference_summary}"
+            
+            # Update thought with enhanced content and increased salience
+            thought.content = enhanced_content
+            thought.salience = min(1.0, thought.salience + 0.1 * len(cross_domain_inferences))
+            
+            # Store inferences in working memory
+            updated_memory['cross_domain_inferences'] = cross_domain_inferences
         
         # Update cognitive state
         self.state.current_thought = thought
@@ -216,11 +448,46 @@ class CogPrimeCore:
         ])
         self.atomspace.add(thought_link)
         
+        # Add cross-domain inference atoms
+        if cross_domain_inferences:
+            for inference in cross_domain_inferences:
+                inference_node = Node("InferenceNode", inference.inference_id)
+                self.atomspace.add(inference_node)
+                
+                # Link inference to thought
+                inference_link = Link("EvaluationLink", [
+                    Node("ConceptNode", "cross_domain_inference"),
+                    Link("ListLink", [thought_node, inference_node])
+                ])
+                self.atomspace.add(inference_link)
+                
+                # Add inference details
+                source_domain_node = Node("DomainNode", inference.source_domain.value)
+                target_domain_node = Node("DomainNode", inference.target_domain.value)
+                reasoning_type_node = Node("ReasoningTypeNode", inference.reasoning_type.value)
+                
+                self.atomspace.add(source_domain_node)
+                self.atomspace.add(target_domain_node)
+                self.atomspace.add(reasoning_type_node)
+                
+                # Create detailed inference structure
+                inference_structure = Link("EvaluationLink", [
+                    Node("ConceptNode", "inference_structure"),
+                    Link("ListLink", [
+                        inference_node,
+                        source_domain_node,
+                        target_domain_node,
+                        reasoning_type_node
+                    ])
+                ])
+                self.atomspace.add(inference_structure)
+        
         # Store thought in memory
         self.memory.store(f"thought_{np.random.randint(10000)}", {
             "content": thought.content,
             "salience": thought.salience,
-            "timestamp": np.datetime64('now')
+            "timestamp": np.datetime64('now'),
+            "cross_domain_inferences": len(cross_domain_inferences)
         })
         
         # Extract facts from thought content using memory system
@@ -229,6 +496,35 @@ class CogPrimeCore:
             if facts:
                 # Store extracted facts in working memory
                 self.state.working_memory['extracted_facts'] = facts
+    
+    def _extract_concepts_from_thought(self, thought_content: str) -> List[str]:
+        """Extract key concepts from thought content for cross-domain reasoning"""
+        # Simple concept extraction (in practice, would use NLP)
+        words = thought_content.lower().split()
+        
+        # Filter for meaningful concepts (exclude common words)
+        stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
+        concepts = [word for word in words if word not in stop_words and len(word) > 2]
+        
+        # Return unique concepts
+        return list(set(concepts))
+    
+    def _summarize_inferences(self, inferences) -> str:
+        """Create a summary of cross-domain inferences"""
+        if not inferences:
+            return "None"
+        
+        summary_parts = []
+        reasoning_counts = {}
+        
+        for inference in inferences:
+            reasoning_type = inference.reasoning_type.value
+            reasoning_counts[reasoning_type] = reasoning_counts.get(reasoning_type, 0) + 1
+        
+        for reasoning_type, count in reasoning_counts.items():
+            summary_parts.append(f"{count} {reasoning_type}")
+        
+        return ", ".join(summary_parts)
     
     def _act(self) -> Optional[Action]:
         """Action phase of the cognitive cycle with learning influence"""
@@ -593,3 +889,193 @@ class CogPrimeCore:
             True if successful, False otherwise  
         """
         return self.meta_learner.load_meta_knowledge(filepath)
+    
+    # Cross-Domain Integration Methods
+    
+    def add_cross_domain_concept_mapping(self, source_domain: DomainType, target_domain: DomainType,
+                                        source_concept: str, target_concept: str,
+                                        mapping_strength: float = 0.8) -> bool:
+        """Add a concept mapping between domains"""
+        mapping = ConceptMapping(
+            source_domain=source_domain,
+            target_domain=target_domain,
+            source_concept=source_concept,
+            target_concept=target_concept,
+            mapping_strength=mapping_strength,
+            semantic_similarity=mapping_strength,  # Simple default
+            bidirectional=True
+        )
+        
+        return self.cross_domain_framework.unified_representation.add_concept_mapping(mapping)
+    
+    def register_abstract_concept(self, concept_name: str, 
+                                 domain_instantiations: Dict[DomainType, List[str]],
+                                 abstraction_level: int = 1) -> bool:
+        """Register an abstract concept that spans multiple domains"""
+        abstract_concept = AbstractConcept(
+            concept_id=f"abstract_{concept_name}",
+            concept_name=concept_name,
+            abstraction_level=abstraction_level,
+            domain_instantiations=domain_instantiations,
+            semantic_features={f"feature_{i}": 0.5 for i in range(10)},  # Default features
+            hierarchical_relations={},
+            cross_domain_analogies=[]
+        )
+        
+        return self.cross_domain_framework.unified_representation.register_abstract_concept(abstract_concept)
+    
+    def perform_cross_domain_reasoning(self, reasoning_type: ReasoningType,
+                                     source_domain: DomainType, target_domain: DomainType,
+                                     source_facts: List[str], context: Dict[str, Any] = None):
+        """Perform cross-domain reasoning with specified parameters"""
+        return self.reasoning_engine.make_cross_domain_inference(
+            reasoning_type=reasoning_type,
+            source_domain=source_domain,
+            target_domain=target_domain,
+            source_facts=source_facts,
+            context=context
+        )
+    
+    def transfer_concept_across_domains(self, source_domain: DomainType, target_domain: DomainType,
+                                      concept: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Transfer knowledge about a concept between domains"""
+        return self.cross_domain_framework.transfer_knowledge(
+            source_domain, target_domain, concept, context
+        )
+    
+    def process_multimodal_input(self, inputs: Dict[ModalityType, Any],
+                               context: Dict[str, Any] = None) -> Dict[str, Any]:
+        """Process multi-modal input through the cross-domain framework"""
+        return self.multimodal_kg.process_multimodal_input(inputs, context)
+    
+    def query_cross_modal_knowledge(self, query_modality: ModalityType, 
+                                   query_data: Any, target_modality: ModalityType,
+                                   similarity_threshold: float = 0.6) -> List[Dict[str, Any]]:
+        """Query knowledge using one modality and retrieve from another"""
+        # Extract features from query data
+        if query_modality in self.multimodal_kg.modality_processors:
+            processor = self.multimodal_kg.modality_processors[query_modality]
+            features = processor.extract_features(query_data)
+            
+            if features:
+                query_features = features[0].feature_vector
+                return self.multimodal_kg.query_cross_modal(
+                    query_modality, query_features, target_modality, similarity_threshold
+                )
+        
+        return []
+    
+    def get_cross_domain_integration_status(self) -> Dict[str, Any]:
+        """Get comprehensive status of cross-domain integration"""
+        framework_status = self.cross_domain_framework.get_integration_status()
+        reasoning_stats = self.reasoning_engine.get_reasoning_statistics()
+        multimodal_stats = self.multimodal_kg.get_integration_statistics()
+        consistency_scores = self.reasoning_engine.validate_inference_consistency()
+        
+        return {
+            'framework_status': framework_status,
+            'reasoning_statistics': reasoning_stats,
+            'multimodal_statistics': multimodal_stats,
+            'consistency_validation': consistency_scores,
+            'overall_health': self._assess_cross_domain_health(
+                framework_status, reasoning_stats, consistency_scores
+            )
+        }
+    
+    def _assess_cross_domain_health(self, framework_status: Dict[str, Any],
+                                  reasoning_stats: Dict[str, Any],
+                                  consistency_scores: Dict[str, float]) -> Dict[str, str]:
+        """Assess overall health of cross-domain integration"""
+        health = {}
+        
+        # Framework health
+        framework_health = framework_status.get('framework_health', {}).get('overall', 'poor')
+        health['framework'] = framework_health
+        
+        # Reasoning health
+        if reasoning_stats['total_inferences'] > 10:
+            avg_strength = reasoning_stats['average_strength']
+            if avg_strength > 0.7:
+                health['reasoning'] = 'excellent'
+            elif avg_strength > 0.5:
+                health['reasoning'] = 'good'
+            elif avg_strength > 0.3:
+                health['reasoning'] = 'fair'
+            else:
+                health['reasoning'] = 'poor'
+        else:
+            health['reasoning'] = 'insufficient_data'
+        
+        # Consistency health
+        overall_consistency = consistency_scores.get('overall_consistency', 0.0)
+        if overall_consistency > 0.8:
+            health['consistency'] = 'excellent'
+        elif overall_consistency > 0.6:
+            health['consistency'] = 'good'
+        elif overall_consistency > 0.4:
+            health['consistency'] = 'fair'
+        else:
+            health['consistency'] = 'poor'
+        
+        # Overall assessment
+        health_values = [health['framework'], health['reasoning'], health['consistency']]
+        excellent_count = health_values.count('excellent')
+        good_count = health_values.count('good')
+        
+        if excellent_count >= 2:
+            health['overall'] = 'excellent'
+        elif excellent_count + good_count >= 2:
+            health['overall'] = 'good'
+        elif 'poor' not in health_values:
+            health['overall'] = 'fair'
+        else:
+            health['overall'] = 'poor'
+        
+        return health
+    
+    def validate_cross_domain_knowledge_consistency(self) -> Dict[str, Any]:
+        """Validate consistency of cross-domain knowledge"""
+        framework_consistency = self.cross_domain_framework.validate_cross_domain_consistency()
+        reasoning_consistency = self.reasoning_engine.validate_inference_consistency()
+        
+        return {
+            'framework_consistency': framework_consistency,
+            'reasoning_consistency': reasoning_consistency,
+            'combined_score': (
+                framework_consistency.get('overall_consistency', 0.0) +
+                reasoning_consistency.get('overall_consistency', 0.0)
+            ) / 2,
+            'recommendations': self._get_consistency_recommendations(
+                framework_consistency, reasoning_consistency
+            )
+        }
+    
+    def _get_consistency_recommendations(self, framework_consistency: Dict[str, float],
+                                       reasoning_consistency: Dict[str, float]) -> List[str]:
+        """Get recommendations for improving consistency"""
+        recommendations = []
+        
+        # Framework consistency recommendations
+        if framework_consistency.get('concept_mapping_consistency', 0.0) < 0.6:
+            recommendations.append("Review and validate concept mappings across domains")
+        
+        if framework_consistency.get('adaptation_accuracy', 0.0) < 0.7:
+            recommendations.append("Improve domain adaptation algorithms with more training data")
+        
+        if framework_consistency.get('cross_modal_coherence', 0.0) < 0.6:
+            recommendations.append("Strengthen cross-modal bindings and correspondences")
+        
+        # Reasoning consistency recommendations
+        if reasoning_consistency.get('logical_consistency', 0.0) < 0.7:
+            recommendations.append("Review inference rules to reduce logical contradictions")
+        
+        if reasoning_consistency.get('temporal_consistency', 0.0) < 0.8:
+            recommendations.append("Implement better temporal reasoning constraints")
+        
+        if reasoning_consistency.get('strength_consistency', 0.0) < 0.6:
+            recommendations.append("Calibrate inference strength calculations")
+        
+        if not recommendations:
+            recommendations.append("Cross-domain integration is performing well")
+        
+        return recommendations
