@@ -54,8 +54,10 @@ class RelevanceCore:
         # Modulate by mode interactions
         for other_mode in RelevanceMode:
             if other_mode != mode:
+                mode_idx = list(RelevanceMode).index(mode)
+                other_mode_idx = list(RelevanceMode).index(other_mode)
                 interaction_weight = self.interaction_weights[
-                    mode.value, other_mode.value
+                    mode_idx, other_mode_idx
                 ]
                 other_contents = self.active_contents[other_mode]
                 salience = self._modulate_salience(
