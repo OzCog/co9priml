@@ -20,3 +20,20 @@ class CognitiveState:
     last_action: Optional[Any] = None  # Will be Action object
     last_reward: float = 0.0
     total_reward: float = 0.0
+    
+    # Vervaeke 4E Cognition state
+    vervaeke_4e_state: Optional[Dict[str, Any]] = None
+    attention_history: List[str] = None
+    
+    def __post_init__(self):
+        """Initialize default values after dataclass creation"""
+        if self.attention_history is None:
+            self.attention_history = []
+    
+    def update_attention_history(self, focus_item: str, max_history: int = 10):
+        """Update attention history for temporal relevance computation"""
+        if self.attention_history is None:
+            self.attention_history = []
+        self.attention_history.append(focus_item)
+        if len(self.attention_history) > max_history:
+            self.attention_history.pop(0)

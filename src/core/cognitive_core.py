@@ -8,6 +8,9 @@ from ..modules.action import ActionSelectionModule, Action
 from ..modules.learning import ReinforcementLearner, Experience
 from ..learning.meta_learning import MetaLearner, MetaExperience, LearningStrategy
 
+# Import Vervaeke 4E Cognition Framework
+from ..modules.vervaeke_4e import Vervaeke4ECognitionFramework, CognitionMode, KnowingMode
+
 # Import the new AtomSpace and Memory modules
 from ..atomspace import AtomSpace, Node, Link, BackendType
 from ..memory import Memory
@@ -39,6 +42,9 @@ class CogPrimeCore:
         
         # Initialize meta-learning system
         self.meta_learner = MetaLearner(self.config.get('meta_learning_config', {}))
+        
+        # Initialize Vervaeke 4E Cognition Framework
+        self.vervaeke_framework = Vervaeke4ECognitionFramework(self.config.get('vervaeke_config', {}))
         
         # Track current domain and task for meta-learning
         self.current_domain = self.config.get('default_domain', 'general')
@@ -246,12 +252,23 @@ class CogPrimeCore:
             self.atomspace.add(concept)
     
     def cognitive_cycle(self, sensory_input: SensoryInput, reward: float = 0.0) -> Optional[Action]:
-        """Execute one cognitive cycle with learning"""
+        """Execute one cognitive cycle with 4E cognition and learning"""
         # Store current state for learning
         current_state = self.state.attention_focus
         
-        # Process cycle
-        self._perceive(sensory_input)
+        # Process through Vervaeke 4E Cognition Framework
+        environmental_context = self._extract_environmental_context(sensory_input)
+        vervaeke_results = self.vervaeke_framework.process_4e_cognition(
+            sensory_input, 
+            self.state.last_action, 
+            environmental_context
+        )
+        
+        # Store 4E cognition results in state for cross-domain reasoning
+        self.state.vervaeke_4e_state = vervaeke_results
+        
+        # Process cycle with enhanced 4E awareness
+        self._perceive(sensory_input, vervaeke_results)
         self._reason()
         action = self._act()
         
@@ -304,10 +321,37 @@ class CogPrimeCore:
         
         return action
     
-    def _perceive(self, sensory_input: SensoryInput) -> None:
-        """Enhanced perception phase with cross-modal integration"""
+    def _perceive(self, sensory_input: SensoryInput, vervaeke_results: Optional[Dict] = None) -> None:
+        """Enhanced perception phase with 4E cognition and cross-modal integration"""
         # Process sensory input through enhanced perception module
         attended_features, attention_weights, processing_info = self.perception.process_input(sensory_input)
+        
+        # Integrate Vervaeke 4E cognition results into perception
+        if vervaeke_results:
+            # Use embodied cognition to enhance sensorimotor integration
+            if 'embodied' in vervaeke_results:
+                embodied_state = vervaeke_results['embodied']['embodied_state']
+                # Modulate attention based on embodied state - handle dimension mismatch
+                if embodied_state.numel() >= attention_weights.shape[0]:
+                    embodied_modulation = embodied_state[:attention_weights.shape[0]]
+                else:
+                    padding = torch.zeros(attention_weights.shape[0] - embodied_state.numel())
+                    embodied_modulation = torch.cat([embodied_state, padding])
+                
+                attention_weights = attention_weights + 0.1 * embodied_modulation
+                processing_info['embodied_integration'] = True
+            
+            # Use embedded cognition for context-aware perception
+            if 'embedded' in vervaeke_results:
+                environmental_context = vervaeke_results['embedded']['environmental_context']
+                affordances = vervaeke_results['embedded']['affordances']
+                processing_info['environmental_affordances'] = affordances
+                processing_info['context_stability'] = vervaeke_results['embedded']['context_stability']
+            
+            # Use salience landscape for attention guidance
+            if 'attention_focus' in vervaeke_results and vervaeke_results['attention_focus']:
+                processing_info['vervaeke_attention_focus'] = vervaeke_results['attention_focus']
+                processing_info['salience_landscape'] = vervaeke_results['salience_landscape']
         
         # Prepare multi-modal inputs for cross-domain processing
         multimodal_inputs = {}
@@ -497,10 +541,32 @@ class CogPrimeCore:
                 # Store extracted facts in working memory
                 self.state.working_memory['extracted_facts'] = facts
     
-    def _extract_concepts_from_thought(self, thought_content: str) -> List[str]:
+    def _extract_concepts_from_thought(self, thought_content: torch.Tensor) -> List[str]:
         """Extract key concepts from thought content for cross-domain reasoning"""
-        # Simple concept extraction (in practice, would use NLP)
-        words = thought_content.lower().split()
+        # Convert tensor to string representation for concept extraction
+        # In practice, this would use proper NLP techniques
+        if isinstance(thought_content, torch.Tensor):
+            # Use tensor statistics as proxy for concepts
+            tensor_stats = {
+                'mean': float(thought_content.mean()),
+                'std': float(thought_content.std()),
+                'max': float(thought_content.max()),
+                'min': float(thought_content.min())
+            }
+            # Generate concept words based on tensor characteristics
+            concepts = []
+            if tensor_stats['mean'] > 0.02:
+                concepts.append('activation')
+            if tensor_stats['std'] > 0.05:
+                concepts.append('variability')
+            if tensor_stats['max'] > 0.1:
+                concepts.append('salience')
+            if tensor_stats['min'] < -0.1:
+                concepts.append('inhibition')
+            return concepts if concepts else ['neutral']
+        else:
+            # Fallback for string input
+            words = str(thought_content).lower().split()
         
         # Filter for meaningful concepts (exclude common words)
         stop_words = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by', 'is', 'are', 'was', 'were'}
@@ -889,6 +955,40 @@ class CogPrimeCore:
             True if successful, False otherwise  
         """
         return self.meta_learner.load_meta_knowledge(filepath)
+    
+    def _extract_environmental_context(self, sensory_input: SensoryInput) -> Dict[str, Any]:
+        """Extract environmental context for 4E cognition processing"""
+        context = {}
+        
+        # Extract context from sensory input
+        if sensory_input.visual is not None:
+            visual_stats = {
+                'visual_intensity': float(torch.mean(torch.abs(sensory_input.visual))),
+                'visual_complexity': float(torch.std(sensory_input.visual)),
+                'visual_pattern': 'complex' if torch.std(sensory_input.visual) > 0.1 else 'simple'
+            }
+            context['visual_environment'] = visual_stats
+            
+        if sensory_input.auditory is not None:
+            auditory_stats = {
+                'audio_volume': float(torch.mean(torch.abs(sensory_input.auditory))),
+                'audio_variability': float(torch.std(sensory_input.auditory)),
+                'audio_pattern': 'dynamic' if torch.std(sensory_input.auditory) > 0.1 else 'static'
+            }
+            context['auditory_environment'] = auditory_stats
+        
+        # Add goal context for centrality computation
+        if self.state.goal_stack:
+            context['goals'] = [goal for goal in self.state.goal_stack[:3]]  # Top 3 goals
+            context['urgency'] = 0.8  # High urgency if goals present
+        else:
+            context['urgency'] = 0.3  # Low urgency if no goals
+            
+        # Add attention history for temporal relevance
+        if hasattr(self.state, 'attention_history'):
+            context['attention_history'] = self.state.attention_history[-5:]  # Last 5 focus items
+        
+        return context
     
     # Cross-Domain Integration Methods
     
