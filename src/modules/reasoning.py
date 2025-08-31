@@ -75,12 +75,15 @@ class AdvancedPatternDetector:
             # Analyze hidden states for patterns
             pattern_strength = torch.norm(hidden, dim=2).squeeze()
             
-            if pattern_strength.item() > 0.3:  # Lower threshold for pattern detection
+            # Normalize confidence to [0, 1] range using sigmoid
+            normalized_confidence = torch.sigmoid(pattern_strength * 0.1)
+            
+            if normalized_confidence.item() > 0.3:  # Lower threshold for pattern detection
                 pattern_id = f"temporal_{hash(tuple(hidden.flatten()[:10].tolist())) % 100000}"
                 pattern = PatternSignature(
                     pattern_id=pattern_id,
                     pattern_type="temporal",
-                    confidence=float(pattern_strength.item()),
+                    confidence=float(normalized_confidence.item()),
                     frequency=self.pattern_frequencies[pattern_id],
                     last_seen=float(torch.rand(1)),  # Placeholder timestamp
                     features=hidden.squeeze(),
