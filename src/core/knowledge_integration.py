@@ -225,12 +225,12 @@ class KnowledgeIntegrator:
         """Classify the type of knowledge item"""
         item_str = str(item_data).lower()
         
-        # Simple heuristic classification
-        if any(word in item_str for word in ['how', 'procedure', 'method', 'algorithm']):
-            return KnowledgeType.PROCEDURAL
-        elif any(word in item_str for word in ['when', 'where', 'if', 'condition']):
+        # Simple heuristic classification with improved keyword matching
+        if any(word in item_str for word in ['when', 'where', 'if', 'condition', 'apply', 'use']):
             return KnowledgeType.CONDITIONAL
-        elif any(word in item_str for word in ['meta', 'learning', 'strategy', 'thinking']):
+        elif any(word in item_str for word in ['how', 'procedure', 'method', 'algorithm', 'step']):
+            return KnowledgeType.PROCEDURAL
+        elif any(word in item_str for word in ['meta', 'learning', 'strategy', 'thinking', 'cognitive']):
             return KnowledgeType.METACOGNITIVE
         else:
             return KnowledgeType.DECLARATIVE
