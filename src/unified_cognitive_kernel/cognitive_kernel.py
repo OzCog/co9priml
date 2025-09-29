@@ -12,6 +12,21 @@ from enum import Enum
 import numpy as np
 from pathlib import Path
 
+# Performance optimization imports
+try:
+    from ..performance.cognitive_optimizer import get_global_cognitive_optimizer
+    from ..performance.profiler import profile
+    from ..performance.parallel_processor import get_global_parallel_processor
+    PERFORMANCE_OPTIMIZATIONS_AVAILABLE = True
+except ImportError:
+    PERFORMANCE_OPTIMIZATIONS_AVAILABLE = False
+    
+    # Create dummy decorators if performance modules not available
+    def profile(name=None):
+        def decorator(func):
+            return func
+        return decorator
+
 from .tensor_kernel import TensorKernelCohesion
 from .cognitive_grammar import CognitiveGrammarField
 from .adaptive_interface import AdaptiveInterfaceLayer
@@ -173,6 +188,7 @@ class UnifiedCognitiveKernel:
         self.logger.info(f"Generated gestalt tensor with shape: {gestalt_tensor.shape}")
         return gestalt_tensor
     
+    @profile('cognitive_kernel.cognitive_cycle')
     async def cognitive_cycle(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute a complete cognitive cycle: sense-think-act

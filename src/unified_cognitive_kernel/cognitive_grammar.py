@@ -14,6 +14,22 @@ from enum import Enum
 import numpy as np
 from pathlib import Path
 
+# Performance optimization imports
+try:
+    from ..performance.memory_pool import get_global_memory_pool
+    from ..performance.pattern_cache import get_global_pattern_cache
+    from ..performance.profiler import profile
+    from ..performance.parallel_processor import get_global_parallel_processor
+    PERFORMANCE_OPTIMIZATIONS_AVAILABLE = True
+except ImportError:
+    PERFORMANCE_OPTIMIZATIONS_AVAILABLE = False
+    
+    # Create dummy decorators if performance modules not available
+    def profile(name=None):
+        def decorator(func):
+            return func
+        return decorator
+
 # Import integration modules
 try:
     from ...integrations.a0ml.python.helpers.atomspace import AtomSpace, Node, Link
@@ -358,6 +374,7 @@ class CognitiveGrammarField:
             )
             self.cognitive_atoms[atom.id] = atom
     
+    @profile('cognitive_grammar.process_reasoning')
     async def process_reasoning(self, tensor_response: Dict[str, Any], 
                               input_data: Dict[str, Any]) -> Dict[str, Any]:
         """Process reasoning through cognitive grammar field"""
