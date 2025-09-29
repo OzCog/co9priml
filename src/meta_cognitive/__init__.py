@@ -32,6 +32,50 @@ from .recursive.recursive_processor import RecursiveMetaCognitiveProcessor
 from .knowledge.meta_knowledge_system import MetaKnowledgeSystem
 from .learning.meta_learner import MetaCognitiveLearner
 
+# Meta-Cognitive Synthesis Framework Factory
+def create_meta_cognitive_framework(config: dict = None) -> MetaCognitiveCore:
+    """
+    Factory function to create a complete meta-cognitive synthesis framework.
+    
+    Args:
+        config: Configuration dictionary for the framework
+        
+    Returns:
+        Configured MetaCognitiveCore with all subsystems initialized
+    """
+    # Create core framework
+    meta_core = MetaCognitiveCore(config)
+    
+    # Create and register all subsystems
+    higher_order_thinking = HigherOrderThinking(config)
+    self_awareness = SelfAwarenessSystem(config)
+    process_analyzer = CognitiveProcessAnalyzer(config)
+    strategy_selector = MetaCognitiveStrategySelector(config)
+    recursive_processor = RecursiveMetaCognitiveProcessor(config)
+    meta_knowledge = MetaKnowledgeSystem(config)
+    meta_learner = MetaCognitiveLearner(config)
+    
+    # Register subsystems with core
+    meta_core.register_subsystem('higher_order_thinking', higher_order_thinking)
+    meta_core.register_subsystem('self_awareness', self_awareness)
+    meta_core.register_subsystem('process_analyzer', process_analyzer)
+    meta_core.register_subsystem('strategy_selector', strategy_selector)
+    meta_core.register_subsystem('recursive_processor', recursive_processor)
+    meta_core.register_subsystem('meta_knowledge', meta_knowledge)
+    meta_core.register_subsystem('meta_learner', meta_learner)
+    
+    # Initialize all subsystems
+    subsystems = [
+        higher_order_thinking, self_awareness, process_analyzer,
+        strategy_selector, recursive_processor, meta_knowledge, meta_learner
+    ]
+    
+    for subsystem in subsystems:
+        if hasattr(subsystem, 'initialize'):
+            subsystem.initialize()
+    
+    return meta_core
+
 __all__ = [
     'MetaCognitiveCore',
     'MetaCognitiveInterface', 
