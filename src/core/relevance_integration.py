@@ -1,15 +1,21 @@
 """
-Integration module for Relevance Optimization System with Cognitive Architecture
+Enhanced Integration module for Relevance Optimization System with Cognitive Architecture
 
-This module provides integration utilities to connect the advanced relevance optimization
-system with the existing cognitive core and other components.
+This module provides enhanced integration utilities that connect the advanced relevance 
+optimization system with knowledge integration, action coupling, and multi-scale 
+temporal assessment for comprehensive relevance realization.
 """
 
 import numpy as np
 from typing import Dict, List, Any, Optional, Tuple
-from ..core.relevance_optimization import RelevanceOptimizer, RelevanceMetrics, SalienceType
-from ..core.relevance_core import RelevanceCore, RelevanceMode
-from ..core.cognitive_core import CogPrimeCore
+from .relevance_optimization import (
+    RelevanceOptimizer, RelevanceMetrics, SalienceType, 
+    TimeScale, MultiScaleRelevanceAssessment
+)
+from .relevance_core import RelevanceCore, RelevanceMode
+from .knowledge_integration import KnowledgeIntegrator, KnowledgeType
+from .action_coupling import ActionCoupler, ActionType
+from .cognitive_core import CogPrimeCore
 from ..modules.perception import SensoryInput
 from ..modules.action import Action
 
@@ -18,8 +24,9 @@ class EnhancedCognitiveCore(CogPrimeCore):
     """
     Enhanced cognitive core with integrated relevance optimization system.
     
-    Extends the base CogPrimeCore to include advanced relevance optimization
-    capabilities for improved cognitive resource allocation.
+    Extends the base CogPrimeCore to include advanced relevance optimization,
+    knowledge integration, action coupling, and multi-scale temporal assessment
+    for comprehensive relevance realization.
     """
     
     def __init__(self, config: Dict[str, Any] = None):
@@ -32,6 +39,20 @@ class EnhancedCognitiveCore(CogPrimeCore):
             config.get('relevance_optimization_config', {})
         )
         
+        # Initialize knowledge integration system
+        self.knowledge_integrator = KnowledgeIntegrator(
+            config.get('knowledge_integration_config', {})
+        )
+        
+        # Initialize action coupling system
+        self.action_coupler = ActionCoupler(
+            config.get('action_coupling_config', {})
+        )
+        
+        # Connect components
+        self.relevance_optimizer.knowledge_integrator = self.knowledge_integrator
+        self.relevance_optimizer.action_coupler = self.action_coupler
+        
         # Performance tracking
         self.baseline_metrics: Optional[RelevanceMetrics] = None
         self.performance_history: List[RelevanceMetrics] = []
@@ -39,12 +60,15 @@ class EnhancedCognitiveCore(CogPrimeCore):
         # Enhanced cognitive state tracking
         self.environmental_state: Dict[str, Any] = {}
         self.goal_priorities: Dict[str, float] = {}
+        self.multi_scale_assessments: List[MultiScaleRelevanceAssessment] = []
+        self.knowledge_relevance_scores: Dict[str, float] = {}
+        self.action_relevance_history: List[float] = []
         
     def enhanced_cognitive_cycle(self, sensory_input: SensoryInput, 
                                 reward: float = 0.0,
                                 environment_data: Dict[str, Any] = None) -> Optional[Action]:
         """
-        Enhanced cognitive cycle with relevance optimization.
+        Enhanced cognitive cycle with comprehensive relevance optimization.
         
         Args:
             sensory_input: Sensory input data
@@ -58,61 +82,124 @@ class EnhancedCognitiveCore(CogPrimeCore):
         if environment_data:
             self.environmental_state.update(environment_data)
         
-        # Detect environmental changes requiring attention
+        # Step 1: Multi-scale relevance assessment
+        input_items = self._extract_items_from_sensory_input(sensory_input)
+        multi_scale_assessments = {}
+        
+        active_goals = [goal for goal in self.state.goal_stack]
+        current_context = self._get_current_context()
+        
+        for item in input_items:
+            assessment = self.relevance_optimizer.compute_multi_scale_relevance(
+                item, current_context, active_goals
+            )
+            multi_scale_assessments[item] = assessment
+            self.multi_scale_assessments.append(assessment)
+        
+        # Keep only recent assessments
+        if len(self.multi_scale_assessments) > 50:
+            self.multi_scale_assessments = self.multi_scale_assessments[-50:]
+        
+        # Step 2: Knowledge integration based on relevance
+        new_knowledge = self._extract_knowledge_from_input(sensory_input)
+        if new_knowledge:
+            integration_results = self.knowledge_integrator.integrate_knowledge(
+                new_knowledge, current_context, multi_scale_assessments
+            )
+            
+            # Update knowledge relevance scores
+            for item in integration_results['integrated_items']:
+                self.knowledge_relevance_scores[item['item_id']] = item['relevance_score']
+        
+        # Step 3: Environmental salience detection
         environmental_signals = []
         if environment_data:
             environmental_signals = self.relevance_optimizer.detect_environmental_salience(
-                environment_data, self._get_current_context()
+                environment_data, current_context
             )
         
-        # Extract current goals and priorities
-        active_goals = [goal for goal in self.state.goal_stack]
-        
-        # Compute relevance scores for current sensory input
-        input_items = self._extract_items_from_sensory_input(sensory_input)
-        relevance_scores = {}
-        
-        for item in input_items:
-            score, components = self.relevance_optimizer.compute_relevance_score(
-                item, self._get_current_context(), active_goals
-            )
-            relevance_scores[item] = score
-        
-        # Optimize attention allocation based on relevance
-        current_attention = self._get_current_attention_allocation()
-        optimized_attention = self.relevance_optimizer.allocate_attention_dynamically(
-            relevance_scores, current_attention, self._get_current_context()
+        # Step 4: Action selection based on relevance coupling
+        available_resources = self._get_available_resources()
+        selected_action_id, selected_action = self.action_coupler.select_action(
+            current_context, multi_scale_assessments, available_resources
         )
         
-        # Update attention focus based on optimization
+        # Step 5: Execute action sequence if needed
+        if current_context.get('complex_task', False):
+            action_sequence = self.action_coupler.execute_action_sequence(
+                current_context, multi_scale_assessments, sequence_length=2
+            )
+            
+            # Track action relevance
+            for _, action, outcome in action_sequence:
+                self.action_relevance_history.append(action.relevance_score)
+        else:
+            # Single action execution
+            self.action_relevance_history.append(selected_action.relevance_score)
+        
+        # Keep action history bounded
+        if len(self.action_relevance_history) > 100:
+            self.action_relevance_history = self.action_relevance_history[-100:]
+        
+        # Step 6: Optimize attention allocation
+        relevance_scores = {item: assessment.combined_score 
+                          for item, assessment in multi_scale_assessments.items()}
+        
+        current_attention = self._get_current_attention_allocation()
+        optimized_attention = self.relevance_optimizer.allocate_attention_dynamically(
+            relevance_scores, current_attention, current_context
+        )
+        
+        # Apply attention optimization
         self._apply_attention_allocation(optimized_attention)
         
-        # Align processing with goals
+        # Step 7: Goal alignment optimization
         goal_alignments = self.relevance_optimizer.align_with_goals(
-            relevance_scores, active_goals, self._get_current_context()
+            relevance_scores, active_goals, current_context
         )
         
         # Apply goal alignment recommendations
         self._apply_goal_alignment_recommendations(goal_alignments)
         
-        # Execute standard cognitive cycle with optimized processing
+        # Step 8: Memory retrieval optimization
+        if current_context.get('memory_query'):
+            memory_items = self._get_available_memory_items()
+            optimized_retrieval = self.relevance_optimizer.optimize_memory_retrieval(
+                current_context['memory_query'], current_context, memory_items
+            )
+            
+            # Update working memory with optimized retrieval
+            self.state.working_memory['optimized_memory'] = optimized_retrieval[:5]  # Top 5
+        
+        # Step 9: Execute standard cognitive cycle with enhanced processing
         action = self.cognitive_cycle(sensory_input, reward)
         
-        # Learn from feedback
+        # Step 10: Cross-module relevance propagation
+        self._propagate_relevance_across_modules(multi_scale_assessments, current_context)
+        
+        # Step 11: Learning and adaptation
         if action:
+            # Learn from action outcomes
             learning_stats = self.relevance_optimizer.learn_from_feedback(
-                self._get_current_context(),
+                current_context,
                 [action.name],
                 [reward],
                 active_goals
             )
             
-            # Store learning stats in working memory
-            self.state.working_memory['relevance_learning_stats'] = learning_stats
+            # Adapt knowledge relevance
+            knowledge_feedback = {item_id: reward * 0.8 + np.random.normal(0, 0.1) 
+                                for item_id in list(self.knowledge_relevance_scores.keys())[-5:]}
+            self.knowledge_integrator.update_knowledge_relevance(knowledge_feedback)
+            
+            # Adapt behavioral patterns
+            if hasattr(self, 'current_pattern'):
+                feedback_scores = [reward] * 3  # Simplified feedback
+                self.action_coupler.adapt_behavior_pattern(self.current_pattern, feedback_scores)
         
-        # Measure and track performance
+        # Step 12: Performance measurement and tracking
         current_metrics = self.relevance_optimizer.measure_performance(
-            self._get_current_context(), self.baseline_metrics
+            current_context, self.baseline_metrics
         )
         self.performance_history.append(current_metrics)
         
@@ -120,16 +207,130 @@ class EnhancedCognitiveCore(CogPrimeCore):
         if self.baseline_metrics is None:
             self.baseline_metrics = current_metrics
         
-        # Store optimization results in working memory
+        # Step 13: Store comprehensive optimization results
         self.state.working_memory.update({
             'environmental_signals': environmental_signals,
-            'relevance_scores': relevance_scores,
-            'attention_allocation': optimized_attention,
-            'goal_alignments': goal_alignments,
-            'performance_metrics': current_metrics
+            'multi_scale_assessments': {k: v.combined_score for k, v in multi_scale_assessments.items()},
+            'selected_action': {
+                'id': selected_action_id,
+                'type': selected_action.action_type.value,
+                'relevance_score': selected_action.relevance_score,
+                'confidence': selected_action.confidence
+            },
+            'goal_alignments': [
+                {
+                    'goal': alignment.goal_id,
+                    'current_relevance': alignment.current_relevance,
+                    'alignment_score': alignment.alignment_score
+                }
+                for alignment in goal_alignments
+            ],
+            'performance_metrics': {
+                'attention_efficiency': current_metrics.attention_efficiency,
+                'goal_alignment_score': current_metrics.goal_alignment_score,
+                'temporal_scale_effectiveness': current_metrics.temporal_scale_effectiveness,
+                'knowledge_integration_score': current_metrics.knowledge_integration_score,
+                'action_coupling_effectiveness': current_metrics.action_coupling_effectiveness,
+                'overall_improvement': current_metrics.overall_performance_improvement
+            },
+            'optimization_active': True
         })
         
         return action
+    
+    def _extract_knowledge_from_input(self, sensory_input: SensoryInput) -> Dict[str, Any]:
+        """Extract knowledge items from sensory input"""
+        knowledge = {}
+        
+        # Extract patterns from visual input
+        if hasattr(sensory_input, 'visual') and sensory_input.visual is not None:
+            visual_patterns = self._extract_visual_patterns(sensory_input.visual)
+            for i, pattern in enumerate(visual_patterns):
+                knowledge[f'visual_pattern_{i}'] = {
+                    'content': pattern,
+                    'modality': 'visual',
+                    'confidence': 0.7
+                }
+        
+        # Extract patterns from auditory input
+        if hasattr(sensory_input, 'auditory') and sensory_input.auditory is not None:
+            audio_patterns = self._extract_audio_patterns(sensory_input.auditory)
+            for i, pattern in enumerate(audio_patterns):
+                knowledge[f'audio_pattern_{i}'] = {
+                    'content': pattern,
+                    'modality': 'auditory', 
+                    'confidence': 0.6
+                }
+        
+        return knowledge
+    
+    def _extract_visual_patterns(self, visual_data) -> List[str]:
+        """Extract visual patterns from visual input data"""
+        # Simplified pattern extraction
+        patterns = []
+        if visual_data is not None:
+            # Create descriptive patterns based on data properties
+            patterns.append(f"visual_intensity_{np.mean(visual_data):.2f}")
+            patterns.append(f"visual_variance_{np.var(visual_data):.2f}")
+            if np.max(visual_data) > 0.5:
+                patterns.append("high_contrast_elements")
+        return patterns
+    
+    def _extract_audio_patterns(self, audio_data) -> List[str]:
+        """Extract audio patterns from auditory input data"""
+        # Simplified pattern extraction
+        patterns = []
+        if audio_data is not None:
+            patterns.append(f"audio_amplitude_{np.mean(np.abs(audio_data)):.2f}")
+            patterns.append(f"audio_frequency_spread_{np.std(audio_data):.2f}")
+            if np.max(np.abs(audio_data)) > 0.7:
+                patterns.append("loud_audio_signal")
+        return patterns
+    
+    def _get_available_resources(self) -> Dict[str, float]:
+        """Get currently available cognitive resources"""
+        return {
+            'attention': 1.0 - (len(self.state.working_memory) / 20.0),  # Attention decreases with WM load
+            'memory': 0.8,  # Assume generally available
+            'processing': 1.0 - (len(self.state.goal_stack) / 10.0)  # Processing decreases with goal load
+        }
+    
+    def _propagate_relevance_across_modules(self, assessments: Dict[str, MultiScaleRelevanceAssessment], 
+                                          context: Dict[str, Any]) -> None:
+        """Propagate relevance information across cognitive modules"""
+        # Extract high-relevance items
+        high_relevance_items = [
+            item for item, assessment in assessments.items() 
+            if assessment.combined_score > 0.7
+        ]
+        
+        # Propagate to attention module
+        if hasattr(self, 'attention_module'):
+            self.attention_module.update_relevance_focus(high_relevance_items)
+        
+        # Propagate to memory module
+        if hasattr(self, 'memory_module'):
+            memory_priorities = {item: assessment.combined_score 
+                               for item, assessment in assessments.items()}
+            self.memory_module.update_encoding_priorities(memory_priorities)
+        
+        # Propagate to goal module
+        if hasattr(self, 'goal_module'):
+            goal_relevant_items = [
+                item for item, assessment in assessments.items()
+                if assessment.medium_term_relevance > 0.6 or assessment.long_term_relevance > 0.6
+            ]
+            self.goal_module.update_goal_relevant_items(goal_relevant_items)
+        
+        # Store propagation info for tracking
+        self.state.working_memory['relevance_propagation'] = {
+            'high_relevance_items': high_relevance_items,
+            'propagation_timestamp': np.datetime64('now').astype(float)
+        }
+    
+    def _get_available_memory_items(self) -> Dict[str, Any]:
+        """Get available memory items for optimization"""
+        return self._get_memory_items_from_system()
     
     def optimize_memory_retrieval(self, query: str, 
                                  memory_items: Dict[str, Any] = None) -> List[Tuple[str, float]]:

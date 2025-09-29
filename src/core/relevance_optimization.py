@@ -25,6 +25,14 @@ class SalienceType(Enum):
     TEMPORAL = "temporal"
 
 
+class TimeScale(Enum):
+    """Multi-scale temporal processing levels"""
+    IMMEDIATE = "immediate"        # Milliseconds to seconds
+    SHORT_TERM = "short_term"      # Seconds to minutes  
+    MEDIUM_TERM = "medium_term"    # Minutes to hours
+    LONG_TERM = "long_term"        # Hours to days
+
+
 @dataclass
 class RelevanceMetrics:
     """Metrics for tracking relevance optimization performance"""
@@ -33,8 +41,22 @@ class RelevanceMetrics:
     goal_alignment_score: float = 0.0
     environmental_responsiveness: float = 0.0
     memory_retrieval_accuracy: float = 0.0
+    temporal_scale_effectiveness: float = 0.0  # New multi-scale metric
+    knowledge_integration_score: float = 0.0   # New knowledge integration metric
+    action_coupling_effectiveness: float = 0.0  # New action coupling metric
     overall_performance_improvement: float = 0.0
     timestamp: float = field(default_factory=lambda: np.datetime64('now').astype(float))
+
+
+@dataclass
+class MultiScaleRelevanceAssessment:
+    """Assessment across multiple temporal scales"""
+    immediate_relevance: float = 0.0    # Milliseconds to seconds
+    short_term_relevance: float = 0.0   # Seconds to minutes
+    medium_term_relevance: float = 0.0  # Minutes to hours  
+    long_term_relevance: float = 0.0    # Hours to days
+    combined_score: float = 0.0
+    dominant_scale: TimeScale = TimeScale.IMMEDIATE
 
 
 @dataclass
@@ -75,6 +97,22 @@ class RelevanceOptimizer:
             SalienceType.CONTEXTUAL: 0.20,
             SalienceType.EMERGENT: 0.15,
             SalienceType.TEMPORAL: 0.10
+        }
+        
+        # Multi-scale temporal processing
+        self.time_scale_weights = {
+            TimeScale.IMMEDIATE: 0.4,    # High weight for immediate relevance
+            TimeScale.SHORT_TERM: 0.3,   # Medium weight for short-term
+            TimeScale.MEDIUM_TERM: 0.2,  # Lower weight for medium-term  
+            TimeScale.LONG_TERM: 0.1     # Lowest weight for long-term
+        }
+        
+        # Temporal decay parameters for each scale
+        self.temporal_decay_rates = {
+            TimeScale.IMMEDIATE: 0.1,    # Fast decay (seconds)
+            TimeScale.SHORT_TERM: 0.01,  # Medium decay (minutes)
+            TimeScale.MEDIUM_TERM: 0.001, # Slow decay (hours)
+            TimeScale.LONG_TERM: 0.0001  # Very slow decay (days)
         }
         
         # Dynamic attention allocation
@@ -149,6 +187,62 @@ class RelevanceOptimizer:
         )
         
         return overall_score, component_scores
+    
+    def compute_multi_scale_relevance(self, item: Any, context: Dict[str, Any],
+                                     goals: List[str] = None) -> MultiScaleRelevanceAssessment:
+        """
+        Compute relevance assessment across multiple temporal scales.
+        
+        Args:
+            item: The item to evaluate for relevance
+            context: Current contextual information
+            goals: Optional list of active goals
+            
+        Returns:
+            Multi-scale relevance assessment
+        """
+        current_time = np.datetime64('now').astype(float)
+        
+        # Immediate relevance (milliseconds to seconds)
+        immediate_context = {**context, 'urgency': context.get('urgency', 0.0) + 0.3}
+        immediate_score, _ = self.compute_relevance_score(item, immediate_context, goals)
+        
+        # Short-term relevance (seconds to minutes)  
+        short_term_score = self._compute_short_term_relevance(item, context, goals)
+        
+        # Medium-term relevance (minutes to hours)
+        medium_term_score = self._compute_medium_term_relevance(item, context, goals)
+        
+        # Long-term relevance (hours to days)
+        long_term_score = self._compute_long_term_relevance(item, context, goals)
+        
+        # Apply temporal decay based on time scale weights
+        immediate_weighted = immediate_score * self.time_scale_weights[TimeScale.IMMEDIATE]
+        short_term_weighted = short_term_score * self.time_scale_weights[TimeScale.SHORT_TERM]
+        medium_term_weighted = medium_term_score * self.time_scale_weights[TimeScale.MEDIUM_TERM]
+        long_term_weighted = long_term_score * self.time_scale_weights[TimeScale.LONG_TERM]
+        
+        # Combined score
+        combined_score = (immediate_weighted + short_term_weighted + 
+                         medium_term_weighted + long_term_weighted)
+        
+        # Determine dominant time scale
+        scale_scores = {
+            TimeScale.IMMEDIATE: immediate_score,
+            TimeScale.SHORT_TERM: short_term_score,
+            TimeScale.MEDIUM_TERM: medium_term_score,
+            TimeScale.LONG_TERM: long_term_score
+        }
+        dominant_scale = max(scale_scores, key=scale_scores.get)
+        
+        return MultiScaleRelevanceAssessment(
+            immediate_relevance=immediate_score,
+            short_term_relevance=short_term_score,
+            medium_term_relevance=medium_term_score,
+            long_term_relevance=long_term_score,
+            combined_score=combined_score,
+            dominant_scale=dominant_scale
+        )
     
     def _compute_environmental_salience(self, item: Any, context: Dict[str, Any]) -> float:
         """Compute salience based on environmental factors"""
@@ -724,13 +818,25 @@ class RelevanceOptimizer:
         # Memory retrieval accuracy
         memory_accuracy = self._measure_memory_retrieval_accuracy()
         
+        # New multi-scale temporal effectiveness
+        temporal_scale_effectiveness = self._measure_temporal_scale_effectiveness()
+        
+        # Knowledge integration score (if available)
+        knowledge_integration_score = self._measure_knowledge_integration_score()
+        
+        # Action coupling effectiveness (if available)
+        action_coupling_effectiveness = self._measure_action_coupling_effectiveness()
+        
         # Compute overall improvement
         current_metrics = RelevanceMetrics(
             attention_efficiency=attention_efficiency,
             cognitive_load_reduction=cognitive_load_reduction,
             goal_alignment_score=goal_alignment,
             environmental_responsiveness=environmental_responsiveness,
-            memory_retrieval_accuracy=memory_accuracy
+            memory_retrieval_accuracy=memory_accuracy,
+            temporal_scale_effectiveness=temporal_scale_effectiveness,
+            knowledge_integration_score=knowledge_integration_score,
+            action_coupling_effectiveness=action_coupling_effectiveness
         )
         
         if baseline_metrics:
@@ -740,6 +846,9 @@ class RelevanceOptimizer:
             improvements.append(current_metrics.goal_alignment_score - baseline_metrics.goal_alignment_score)
             improvements.append(current_metrics.environmental_responsiveness - baseline_metrics.environmental_responsiveness)
             improvements.append(current_metrics.memory_retrieval_accuracy - baseline_metrics.memory_retrieval_accuracy)
+            improvements.append(current_metrics.temporal_scale_effectiveness - baseline_metrics.temporal_scale_effectiveness)
+            improvements.append(current_metrics.knowledge_integration_score - baseline_metrics.knowledge_integration_score)
+            improvements.append(current_metrics.action_coupling_effectiveness - baseline_metrics.action_coupling_effectiveness)
             
             current_metrics.overall_performance_improvement = np.mean(improvements)
         else:
@@ -1011,3 +1120,152 @@ class RelevanceOptimizer:
         
         recent_successes = self.retrieval_success_history[-20:]
         return sum(recent_successes) / len(recent_successes)
+    
+    # Multi-scale temporal assessment methods
+    
+    def _compute_short_term_relevance(self, item: Any, context: Dict[str, Any], 
+                                     goals: List[str] = None) -> float:
+        """Compute relevance for short-term processing (seconds to minutes)"""
+        # Focus on immediate patterns and working memory constraints
+        base_score, _ = self.compute_relevance_score(item, context, goals)
+        
+        # Boost for items that fit working memory capacity
+        if hasattr(self, 'working_memory_items'):
+            wm_capacity = 7  # Miller's magic number
+            if len(self.working_memory_items) < wm_capacity:
+                base_score *= 1.2
+            else:
+                base_score *= 0.8  # Penalty for overload
+        
+        # Consider repetition priming effects
+        item_str = str(item)
+        if hasattr(self, 'recent_items'):
+            if item_str in self.recent_items[-5:]:  # Recent exposure
+                base_score *= 1.15  # Priming boost
+        
+        return min(1.0, base_score)
+    
+    def _compute_medium_term_relevance(self, item: Any, context: Dict[str, Any],
+                                      goals: List[str] = None) -> float:
+        """Compute relevance for medium-term processing (minutes to hours)"""
+        # Focus on goal pursuit and learning consolidation
+        base_score, _ = self.compute_relevance_score(item, context, goals)
+        
+        # Enhanced goal relevance for medium-term
+        if goals:
+            goal_boost = 0.0
+            for goal in goals:
+                if goal in self.active_goals:
+                    goal_priority = self.active_goals[goal].get('priority', 0.5)
+                    goal_boost += goal_priority * 0.3
+            base_score += min(0.4, goal_boost)
+        
+        # Learning consolidation factor
+        if 'learning' in str(item).lower() or context.get('task_type') == 'learning':
+            base_score *= 1.25
+        
+        return min(1.0, base_score)
+    
+    def _compute_long_term_relevance(self, item: Any, context: Dict[str, Any],
+                                    goals: List[str] = None) -> float:
+        """Compute relevance for long-term processing (hours to days)"""
+        # Focus on knowledge integration and strategic planning
+        base_score, _ = self.compute_relevance_score(item, context, goals)
+        
+        # Strategic importance
+        strategic_keywords = ['strategy', 'plan', 'future', 'knowledge', 'skill', 'learning']
+        item_str = str(item).lower()
+        strategic_relevance = sum(1 for keyword in strategic_keywords if keyword in item_str)
+        base_score += min(0.3, strategic_relevance * 0.1)
+        
+        # Knowledge integration potential
+        if hasattr(self, 'knowledge_base'):
+            # Boost items that connect to existing knowledge
+            connection_count = self._count_knowledge_connections(item)
+            base_score += min(0.2, connection_count * 0.05)
+        
+        # Long-term goal alignment
+        if goals and hasattr(self, 'long_term_goal_mapping'):
+            for goal in goals:
+                if goal in self.long_term_goal_mapping:
+                    long_term_alignment = self.long_term_goal_mapping[goal]
+                    base_score += long_term_alignment * 0.2
+        
+        return min(1.0, base_score)
+    
+    def _count_knowledge_connections(self, item: Any) -> int:
+        """Count connections between item and existing knowledge base"""
+        # Simplified knowledge connection counting
+        item_str = str(item).lower()
+        connection_count = 0
+        
+        # Check for conceptual connections (simplified)
+        conceptual_terms = item_str.split()
+        if hasattr(self, 'knowledge_concepts'):
+            for term in conceptual_terms:
+                if term in self.knowledge_concepts:
+                    connection_count += 1
+        
+        return connection_count
+    
+    def _measure_temporal_scale_effectiveness(self) -> float:
+        """Measure effectiveness of multi-scale temporal assessment"""
+        # If we have multi-scale assessments, measure their consistency and accuracy
+        if hasattr(self, 'multi_scale_assessments'):
+            assessments = self.multi_scale_assessments
+            if assessments:
+                # Measure consistency across scales
+                consistency_scores = []
+                for assessment in assessments:
+                    scales = [
+                        assessment.immediate_relevance,
+                        assessment.short_term_relevance, 
+                        assessment.medium_term_relevance,
+                        assessment.long_term_relevance
+                    ]
+                    # Lower variance indicates better scale consistency
+                    variance = np.var(scales)
+                    consistency = 1.0 / (1.0 + variance)
+                    consistency_scores.append(consistency)
+                
+                return np.mean(consistency_scores)
+        
+        # Default based on temporal salience performance
+        if hasattr(self, 'temporal_salience_accuracy'):
+            return self.temporal_salience_accuracy
+        
+        return 0.6  # Default temporal effectiveness
+    
+    def _measure_knowledge_integration_score(self) -> float:
+        """Measure knowledge integration performance"""
+        # If knowledge integrator is available, use its metrics
+        if hasattr(self, 'knowledge_integrator'):
+            integration_metrics = self.knowledge_integrator.integration_history
+            if integration_metrics:
+                latest_metrics = integration_metrics[-1]
+                return (latest_metrics.integration_efficiency + 
+                       latest_metrics.relevance_accuracy +
+                       latest_metrics.knowledge_coherence) / 3
+        
+        # Default based on relevance accuracy of integrated knowledge
+        if hasattr(self, 'knowledge_relevance_scores'):
+            return np.mean(list(self.knowledge_relevance_scores.values()))
+        
+        return 0.7  # Default knowledge integration score
+    
+    def _measure_action_coupling_effectiveness(self) -> float:
+        """Measure action coupling performance"""
+        # If action coupler is available, use its metrics
+        if hasattr(self, 'action_coupler'):
+            coupling_metrics = self.action_coupler.coupling_metrics_history
+            if coupling_metrics:
+                latest_metrics = coupling_metrics[-1]
+                return (latest_metrics.action_relevance_alignment +
+                       latest_metrics.behavior_coherence +
+                       latest_metrics.efficiency_score) / 3
+        
+        # Default based on action-relevance alignment in history
+        if hasattr(self, 'action_relevance_history'):
+            return np.mean(self.action_relevance_history[-10:])
+        
+        return 0.65  # Default action coupling effectiveness
