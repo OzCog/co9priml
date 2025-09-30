@@ -6,6 +6,7 @@ Integrates all cognitive components into a unified, distributed neural-symbolic 
 
 import asyncio
 import logging
+import time
 from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
@@ -32,6 +33,7 @@ from .cognitive_grammar import CognitiveGrammarField
 from .adaptive_interface import AdaptiveInterfaceLayer
 from .attention_allocation import ECANAttentionAllocation
 from .tensor_shapes import TensorShapeMetaDesign
+from .resource_manager import DynamicResourceManager
 
 
 class CognitiveState(Enum):
@@ -73,6 +75,18 @@ class CognitiveKernelConfig:
         'enable_rest': True,
         'port': 8080
     })
+    
+    # Resource management configuration
+    resource_config: Dict[str, Any] = field(default_factory=lambda: {
+        'max_concurrent_tasks': 8,
+        'memory_pool_size': 1024 * 1024 * 500,  # 500MB
+        'attention_capacity': 100.0,
+        'cognitive_modules': ['reasoning', 'memory', 'attention', 'planning', 'learning'],
+        'monitor_interval': 1.0,
+        'enable_preallocation': True,
+        'enable_load_balancing': True,
+        'enable_graceful_degradation': True
+    })
 
 
 class UnifiedCognitiveKernel:
@@ -95,6 +109,7 @@ class UnifiedCognitiveKernel:
         self.adaptive_interface = AdaptiveInterfaceLayer(config.api_config)
         self.attention_allocation = ECANAttentionAllocation(config.attention_config)
         self.tensor_meta_design = TensorShapeMetaDesign()
+        self.resource_manager = DynamicResourceManager(config.resource_config)
         
         # Cognitive state tracking
         self.cognitive_field = {}
@@ -119,6 +134,10 @@ class UnifiedCognitiveKernel:
             # Initialize attention allocation
             await self.attention_allocation.initialize()
             self.logger.info("ECAN attention allocation initialized")
+            
+            # Initialize resource manager
+            await self.resource_manager.initialize()
+            self.logger.info("Dynamic resource manager initialized")
             
             # Initialize adaptive interface
             await self.adaptive_interface.initialize()
@@ -204,31 +223,54 @@ class UnifiedCognitiveKernel:
         
         self.logger.debug("Starting cognitive cycle")
         
-        # Step 1: Tensor processing through kernel cohesion
-        tensor_response = await self.tensor_kernel.process_input(input_data)
+        # Import resource manager types for requests
+        from .resource_manager import ResourceRequest, ResourceType, Priority
         
-        # Step 2: Memory and reasoning through cognitive grammar
-        reasoning_response = await self.cognitive_grammar.process_reasoning(
-            tensor_response, input_data
+        # Step 0: Allocate computational resources for the cycle
+        cycle_request = ResourceRequest(
+            request_id=f"cognitive_cycle_{int(time.time())}",
+            resource_type=ResourceType.CPU,
+            amount=50.0,  # Base cognitive load
+            priority=Priority.HIGH,
+            duration_estimate=1.0  # 1 second estimate
         )
         
-        # Step 3: Attention allocation and resource management
-        attention_response = await self.attention_allocation.allocate_attention(
-            reasoning_response, self.cognitive_field
-        )
+        cycle_allocation = await self.resource_manager.allocate_resources(cycle_request)
         
-        # Step 4: Update gestalt field
-        self.gestalt_tensor = await self._update_gestalt_field(
-            tensor_response, reasoning_response, attention_response
-        )
-        
-        # Step 5: Generate response through adaptive interface
-        final_response = await self.adaptive_interface.generate_response(
-            attention_response, self.gestalt_tensor
-        )
-        
-        self.logger.debug("Cognitive cycle completed")
-        return final_response
+        try:
+            # Step 1: Tensor processing through kernel cohesion
+            tensor_response = await self.tensor_kernel.process_input(input_data)
+            
+            # Step 2: Memory and reasoning through cognitive grammar
+            reasoning_response = await self.cognitive_grammar.process_reasoning(
+                tensor_response, input_data
+            )
+            
+            # Step 3: Attention allocation and resource management
+            attention_response = await self.attention_allocation.allocate_attention(
+                reasoning_response, self.cognitive_field
+            )
+            
+            # Step 4: Update gestalt field
+            self.gestalt_tensor = await self._update_gestalt_field(
+                tensor_response, reasoning_response, attention_response
+            )
+            
+            # Step 5: Generate response through adaptive interface
+            final_response = await self.adaptive_interface.generate_response(
+                attention_response, self.gestalt_tensor
+            )
+            
+            # Step 6: Add resource management status to response
+            final_response['resource_status'] = self.resource_manager.get_resource_status()
+            
+            self.logger.debug("Cognitive cycle completed")
+            return final_response
+            
+        finally:
+            # Always release cycle resources
+            if cycle_allocation:
+                await self.resource_manager.release_resources(cycle_allocation)
     
     async def _update_gestalt_field(self, *component_responses) -> np.ndarray:
         """Update the unified gestalt tensor field based on component responses"""
@@ -278,7 +320,8 @@ class UnifiedCognitiveKernel:
             'tensor_kernel_efficiency': await self.tensor_kernel.get_efficiency_metrics(),
             'attention_allocation_effectiveness': await self.attention_allocation.get_effectiveness_metrics(),
             'reasoning_accuracy': await self.cognitive_grammar.get_accuracy_metrics(),
-            'response_quality': await self.adaptive_interface.get_quality_metrics()
+            'response_quality': await self.adaptive_interface.get_quality_metrics(),
+            'resource_utilization': self.resource_manager.get_resource_status()
         }
         
         return metrics
@@ -289,6 +332,7 @@ class UnifiedCognitiveKernel:
         
         # Shutdown components in reverse order
         await self.adaptive_interface.shutdown()
+        await self.resource_manager.shutdown()
         await self.attention_allocation.shutdown()
         await self.cognitive_grammar.shutdown()
         await self.tensor_kernel.shutdown()
@@ -305,8 +349,10 @@ class UnifiedCognitiveKernel:
                 'tensor_kernel': self.tensor_kernel.is_active(),
                 'cognitive_grammar': self.cognitive_grammar.is_active(),
                 'attention_allocation': self.attention_allocation.is_active(),
-                'adaptive_interface': self.adaptive_interface.is_active()
+                'adaptive_interface': self.adaptive_interface.is_active(),
+                'resource_manager': self.resource_manager is not None
             },
             'attention_weights': self.attention_weights,
-            'cognitive_field_size': len(self.cognitive_field)
+            'cognitive_field_size': len(self.cognitive_field),
+            'resource_status': self.resource_manager.get_resource_status() if self.resource_manager else None
         }
