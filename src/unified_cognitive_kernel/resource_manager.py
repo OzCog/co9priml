@@ -37,6 +37,13 @@ except ImportError:
             return func
         return decorator
 
+# Import degradation strategies
+try:
+    from .degradation_strategies import GracefulDegradationManager, ResourcePressureDetector
+    DEGRADATION_STRATEGIES_AVAILABLE = True
+except ImportError:
+    DEGRADATION_STRATEGIES_AVAILABLE = False
+
 
 class ResourceType(Enum):
     """Types of resources managed by the system"""
@@ -647,6 +654,16 @@ class DynamicResourceManager:
         )
         self.predictor = ResourcePredictor()
         
+        # Initialize degradation management if available
+        if DEGRADATION_STRATEGIES_AVAILABLE and self.config.get('enable_graceful_degradation', False):
+            self.degradation_manager = GracefulDegradationManager()
+            self.pressure_detector = ResourcePressureDetector()
+            self.degradation_enabled = True
+        else:
+            self.degradation_manager = None
+            self.pressure_detector = None
+            self.degradation_enabled = False
+        
         # Resource state tracking
         self.active_allocations: Dict[str, ResourceAllocation] = {}
         self.resource_constraints: Dict[ResourceType, List[ResourceConstraint]] = defaultdict(list)
@@ -804,8 +821,30 @@ class DynamicResourceManager:
         
         self.logger.warning(f"Resource alert: {resource_type} at {utilization:.1%} utilization")
         
-        # Apply degradation strategy if available
-        if resource_type in self.degradation_strategies:
+        # Record pressure data for degradation analysis
+        if self.pressure_detector:
+            self.pressure_detector.record_pressure(resource_type, utilization)
+        
+        # Use advanced degradation management if available
+        if self.degradation_enabled and self.degradation_manager:
+            try:
+                # Get current metrics for degradation evaluation
+                metrics = self.monitor.get_metrics()
+                
+                # Evaluate needed degradation actions
+                needed_actions = self.degradation_manager.evaluate_degradation_need(metrics)
+                
+                # Apply degradation actions asynchronously
+                for action in needed_actions:
+                    asyncio.create_task(self.degradation_manager.apply_degradation(
+                        action, {'alert_data': alert_data}
+                    ))
+                
+            except Exception as e:
+                self.logger.error(f"Error in advanced degradation handling: {e}")
+        
+        # Fallback to legacy degradation strategy if available
+        elif resource_type in self.degradation_strategies:
             try:
                 self.degradation_strategies[resource_type](alert_data)
             except Exception as e:
@@ -851,7 +890,7 @@ class DynamicResourceManager:
     def get_resource_status(self) -> Dict[str, Any]:
         """Get current resource status"""
         with self.lock:
-            return {
+            status = {
                 'active_allocations': len(self.active_allocations),
                 'cpu_utilization': self.load_balancer.module_loads.copy(),
                 'memory_utilization': self.memory_manager.get_utilization(),
@@ -863,6 +902,15 @@ class DynamicResourceManager:
                     for metric, values in self.performance_metrics.items()
                 }
             }
+            
+            # Add degradation information if available
+            if self.degradation_enabled and self.degradation_manager:
+                status['degradation_status'] = self.degradation_manager.get_status()
+                
+            if self.pressure_detector:
+                status['pressure_status'] = self.pressure_detector.get_pressure_status()
+            
+            return status
     
     def add_resource_constraint(self, constraint: ResourceConstraint) -> None:
         """Add resource constraint"""
