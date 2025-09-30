@@ -6,6 +6,27 @@ import numpy as np
 from collections import defaultdict, deque
 import math
 
+# Performance optimization imports
+try:
+    from ..performance.memory_pool import get_global_memory_pool
+    from ..performance.pattern_cache import get_global_pattern_cache
+    from ..performance.profiler import profile
+    from ..performance.jit_optimizer import jit_profile
+    PERFORMANCE_OPTIMIZATIONS_AVAILABLE = True
+except ImportError:
+    PERFORMANCE_OPTIMIZATIONS_AVAILABLE = False
+    
+    # Create dummy decorators if performance modules not available
+    def profile(name=None):
+        def decorator(func):
+            return func
+        return decorator
+    
+    def jit_profile(name=None):
+        def decorator(func):
+            return func
+        return decorator
+
 @dataclass
 class Thought:
     """Represents a cognitive thought pattern"""
@@ -471,6 +492,8 @@ class ReasoningModule(nn.Module):
         # Keep track of input history for temporal pattern detection
         self.input_history = deque(maxlen=20)
     
+    @profile('reasoning.process_thought')
+    @jit_profile('reasoning.process_thought')
     def process_thought(self, 
                        current_input: torch.Tensor,
                        working_memory: Dict[str, Any]) -> Tuple[Thought, Dict[str, Any]]:
